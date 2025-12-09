@@ -8,7 +8,7 @@
 #   wget -qO- https://raw.githubusercontent.com/bvm-cli/bvm/main/install.sh | bash
 #
 
-set -e
+set -e # Exit immediately if a command exits with a non-zero status
 
 # --- Configuration ---
 # Repo: bvm-cli/bvm
@@ -64,10 +64,24 @@ fi
 ASSET_NAME="bvm-${PLATFORM}-${ARCH}${EXTENSION}"
 
 # --- Dynamically get the latest release tag ---
-echo "Fetching latest release tag..."
-LATEST_TAG=$(curl -s "https://api.github.com/repos/${REPO}/releases/latest" | grep "tag_name" | cut -d : -f 2,3 | tr -d \" | tr -d , | tr -d " ")
+echo "Fetching latest release tag from GitHub API..."
+# Use a more robust JSON parsing for tag_name, requires 'jq'
+# Fallback to grep/cut if jq is not available
+
+LATEST_RELEASE_JSON=$(curl -s "https://api.github.com/repos/${REPO}/releases/latest")
+
+if command -v jq >/dev/null 2>&1; then
+  LATEST_TAG=$(echo "$LATEST_RELEASE_JSON" | jq -r ".tag_name")
+else
+  # Fallback to grep/cut for basic shell environments if jq is not present
+  # This is less robust but works in most cases
+  LATEST_TAG=$(echo "$LATEST_RELEASE_JSON" | grep "tag_name" | head -n 1 | cut -d : -f 2- | tr -d \" | tr -d , | tr -d " ")
+fi
+
 if [ -z "$LATEST_TAG" ]; then
-    echo -e "${Red}Error: Could not fetch the latest release tag from GitHub API.${Color_Off}"
+    echo -e "${Red}Error: Could not fetch the latest release tag from GitHub API. Please check your network or try again.${Color_Off}"
+    echo -e "${Yellow}GitHub API response (partial):${Color_Off}"
+    echo "$LATEST_RELEASE_JSON" | head -n 5 # Print first 5 lines of API response for debug
     exit 1
 fi
 echo "Latest tag found: ${Green}${LATEST_TAG}${Color_Off}"
@@ -102,7 +116,7 @@ echo -e "Configuring shell..."
 "${BIN_DIR}/bvm${EXTENSION}" setup
 
 echo -e "
-${Green}🎉 bvm installed successfully!${Color_Off}
+${Green}🎉 bvm installed successfully!${Color_Off}"
 
 Please restart your terminal or run the command suggested above to start using bvm.
 
