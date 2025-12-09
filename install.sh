@@ -18,14 +18,40 @@ REPO="bvm-cli/bvm"
 # Reset
 Color_Off='\033[0m'       # Text Reset
 
-# Regular Colors
+# Regular Colors (only used if _colorize is active)
 Red='\033[0;31m'          # Red
 Green='\033[0;32m'        # Green
 Yellow='\033[0;33m'       # Yellow
 Blue='\033[0;34m'         # Blue
 Cyan='\033[0;36m'         # Cyan
 
-echo -e "${Blue}Installing bvm (Bun Version Manager)...${Color_Off}"
+# Function to colorize text only if running in a TTY
+_colorize() {
+  local color="$1"
+  local text="$2"
+  if [[ -t 1 ]]; then # Check if stdout is a tty
+    echo -e "${color}${text}${Color_Off}"
+  else
+    echo "$text"
+  fi
+}
+
+# --- Simple Shell Spinner ---
+spinner() {
+  local pid=$!
+  local delay=0.1
+  local spinstr='|/-\'
+  echo -n " "
+  while ps -p $pid > /dev/null; do
+    local temp=${spinstr#?}
+    printf "\b%c" "$spinstr"
+    spinstr=$temp${spinstr%"$temp"}
+    sleep $delay
+  done
+  printf "\b "
+}
+
+echo "$(_colorize "$Blue" "Installing bvm (Bun Version Manager)...")"
 
 # Detect OS and Arch
 OS="$(uname -s)"
@@ -38,7 +64,7 @@ elif [[ "$OS" == "Darwin"* ]]; then
 elif [[ "$OS" == "MINGW"* || "$OS" == "MSYS"* || "$OS" == "CYGWIN"* ]]; then
     PLATFORM="windows"
 else
-    echo -e "${Red}Error: Unsupported OS: $OS (Actual value: \"$(uname -s)\")${Color_Off}"
+    echo "$(_colorize "$Red" "Error: Unsupported OS: $OS (Actual value: \"$(uname -s)\")")"
     exit 1
 fi
 
@@ -50,7 +76,7 @@ case "$ARCH" in
     ARCH="aarch64"
     ;;
   *)
-    echo -e "${Red}Error: Unsupported Architecture: $ARCH${Color_Off}"
+    echo "$(_colorize "$Red" "Error: Unsupported Architecture: $ARCH")"
     exit 1
     ;;
 esac
@@ -65,8 +91,6 @@ ASSET_NAME="bvm-${PLATFORM}-${ARCH}${EXTENSION}"
 
 # --- Dynamically get the latest release tag ---
 echo "Fetching latest release tag from GitHub API..."
-# Use a more robust JSON parsing for tag_name, requires 'jq'
-# Fallback to grep/cut if jq is not available
 
 LATEST_RELEASE_JSON=$(curl -s "https://api.github.com/repos/${REPO}/releases/latest")
 
@@ -74,17 +98,16 @@ if command -v jq >/dev/null 2>&1; then
   LATEST_TAG=$(echo "$LATEST_RELEASE_JSON" | jq -r ".tag_name")
 else
   # Fallback to grep/cut for basic shell environments if jq is not present
-  # This is less robust but works in most cases
   LATEST_TAG=$(echo "$LATEST_RELEASE_JSON" | grep "tag_name" | head -n 1 | cut -d : -f 2- | tr -d \" | tr -d , | tr -d " ")
 fi
 
 if [ -z "$LATEST_TAG" ]; then
-    echo -e "${Red}Error: Could not fetch the latest release tag from GitHub API. Please check your network or try again.${Color_Off}"
-    echo -e "${Yellow}GitHub API response (partial):${Color_Off}"
+    echo "$(_colorize "$Red" "Error: Could not fetch the latest release tag from GitHub API. Please check your network or try again.")"
+    echo "$(_colorize "$Yellow" "GitHub API response (partial):")"
     echo "$LATEST_RELEASE_JSON" | head -n 5 # Print first 5 lines of API response for debug
     exit 1
 fi
-echo "Latest tag found: ${Green}${LATEST_TAG}${Color_Off}"
+echo "Latest tag found: $(_colorize "$Green" "$LATEST_TAG")"
 
 DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${LATEST_TAG}/${ASSET_NAME}"
 
@@ -95,31 +118,44 @@ BIN_DIR="${BVM_DIR}/bin"
 # Ensure directories exist
 mkdir -p "$BIN_DIR"
 
-echo -e "Detecting platform: ${Green}${PLATFORM} ${ARCH}${Color_Off}"
-echo -e "Attempting to download from: ${Yellow}${DOWNLOAD_URL}${Color_Off}"
+echo "Detecting platform: $(_colorize "$Green" "${PLATFORM} ${ARCH}")${Color_Off}"
+echo "Downloading bvm from: $(_colorize "$Yellow" "$DOWNLOAD_URL")"
 
-if command -v curl >/dev/null 2>&1; then
-  curl -fsSL "$DOWNLOAD_URL" -o "${BIN_DIR}/bvm${EXTENSION}"
-elif command -v wget >/dev/null 2>&1; then
-  wget -qO "${BIN_DIR}/bvm${EXTENSION}" "$DOWNLOAD_URL"
-else
-  echo -e "${Red}Error: curl or wget is required to install bvm.${Color_Off}"
-  exit 1
+# --- Start download with Spinner ---
+if [[ -t 1 ]]; then # If running in a TTY, use spinner
+    (
+        if command -v curl >/dev/null 2>&1; then
+          curl -fsSL "$DOWNLOAD_URL" -o "${BIN_DIR}/bvm${EXTENSION}"
+        elif command -v wget >/dev/null 2>&1; then
+          wget -qO "${BIN_DIR}/bvm${EXTENSION}" "$DOWNLOAD_URL"
+        else
+          echo "$(_colorize "$Red" "Error: curl or wget is required to install bvm.")"
+          exit 1
+        fi
+    ) & spinner
+else # If not TTY, just show silent download
+    if command -v curl >/dev/null 2>&1; then
+      curl -fsSL "$DOWNLOAD_URL" -o "${BIN_DIR}/bvm${EXTENSION}"
+    elif command -v wget >/dev/null 2>&1; then
+      wget -qO "${BIN_DIR}/bvm${EXTENSION}" "$DOWNLOAD_URL"
+    else
+      echo "$(_colorize "$Red" "Error: curl or wget is required to install bvm.")"
+      exit 1
+    fi
 fi
 
 chmod +x "${BIN_DIR}/bvm${EXTENSION}"
 
-echo -e "${Green}✓ bvm installed to ${BIN_DIR}/bvm${EXTENSION}${Color_Off}"
+echo "$(_colorize "$Green" "✓ bvm installed to ${BIN_DIR}/bvm${EXTENSION}")"
 
 # Configure Shell
-echo -e "Configuring shell..."
+echo "Configuring shell..."
 "${BIN_DIR}/bvm${EXTENSION}" setup
 
-echo -e "
-${Green}🎉 bvm installed successfully!${Color_Off}"
-
-Please restart your terminal or run the command suggested above to start using bvm.
-
-Then run:
-  ${Cyan}bvm install latest${Color_Off}
-"
+echo ""
+echo "$(_colorize "$Green" "🎉 bvm installed successfully!")"
+echo ""
+echo "Please restart your terminal or run the command suggested above to start using bvm."
+echo ""
+echo "Then run:"
+echo "$(_colorize "$Cyan" "  bvm install latest")"
