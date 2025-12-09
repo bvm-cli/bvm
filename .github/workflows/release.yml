@@ -18,10 +18,10 @@ jobs:
           - os: ubuntu-latest
             artifact_name: bvm
             asset_name: bvm-linux-x64
-          - os: macos-13 # Intel
+          - os: macos-15-intel # Intel x64
             artifact_name: bvm
             asset_name: bvm-darwin-x64
-          - os: macos-14 # Apple Silicon
+          - os: macos-15 # Apple Silicon arm64
             artifact_name: bvm
             asset_name: bvm-darwin-aarch64
           - os: windows-latest
@@ -76,3 +76,5 @@ jobs:
             artifacts/bvm-darwin-aarch64/bvm-darwin-aarch64
             artifacts/bvm-windows-x64.exe/bvm-windows-x64.exe
           generate_release_notes: true
+          prerelease: false # Ensure it's not marked as pre-release
+          latest: true      # Explicitly mark as the latest stable release
