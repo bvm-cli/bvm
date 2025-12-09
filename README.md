@@ -1,7 +1,5 @@
 # BVM (Bun Version Manager)
 
-![bvm-banner](https://raw.githubusercontent.com/bvm-cli/bvm/main/bvm-banner.png) <!-- Placeholder for a potential future banner image -->
-
 > **⚡️ The native version manager for Bun, driven by Bun. Cross-platform, shell-agnostic, and zero-dependency.**
 
 `bvm` is a fast, efficient, and seamless version manager **built entirely with Bun, for the Bun JavaScript runtime**. It leverages Bun's native performance and ecosystem to provide a superior experience for managing multiple Bun installations on your system without external dependencies.
