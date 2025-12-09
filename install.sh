@@ -41,21 +41,20 @@ OS=\"$(uname -s)\"
 ARCH=\"$(uname -m)\"
 
 case "$OS" in
-  Linux)
+  Linux*) # Match Linux and any variants like 'Linux-gnu'
     PLATFORM="linux"
     ;;
-  Darwin)
+  Darwin*) # Match Darwin and any variants
     PLATFORM="darwin"
     ;;
-  MINGW*|MSYS*|CYGWIN*) 
+  MINGW*|MSYS*|CYGWIN*)
     PLATFORM="windows"
     ;;
   *)
-    echo -e "${Red}Error: Unsupported OS: $OS${Color_Off}"
+    echo -e "${Red}Error: Unsupported OS: $OS (Actual value: \"$(uname -s)\")${Color_Off}"
     exit 1
     ;;
 esac
-
 case "$ARCH" in
   x86_64)
     ARCH="x64"
