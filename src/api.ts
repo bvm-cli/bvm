@@ -1,4 +1,4 @@
-import { USER_AGENT, getBunAssetName, REPO_FOR_BVM_CLI, ASSET_NAME_FOR_BVM, OS_PLATFORM, CPU_ARCH } from './constants';
+import { USER_AGENT, getBunAssetName, REPO_FOR_BVM_CLI, ASSET_NAME_FOR_BVM, OS_PLATFORM, CPU_ARCH, IS_TEST_MODE, TEST_REMOTE_VERSIONS } from './constants';
 import { normalizeVersion } from './utils';
 import semver from 'semver';
 import chalk from 'chalk';
@@ -23,6 +23,9 @@ function isChina(): boolean {
  * - Elsewhere: Prefer npmjs, fallback to npmmirror.
  */
 export async function fetchBunVersionsFromNpm(): Promise<string[]> {
+  if (IS_TEST_MODE) {
+    return [...TEST_REMOTE_VERSIONS];
+  }
   const inChina = isChina();
   const registries = inChina 
     ? ['https://registry.npmmirror.com/bun', 'https://registry.npmjs.org/bun']
@@ -73,6 +76,9 @@ export async function fetchBunVersionsFromNpm(): Promise<string[]> {
  * Backup method: No API rate limits, no tokens required.
  */
 export async function fetchBunVersionsFromGit(): Promise<string[]> {
+  if (IS_TEST_MODE) {
+    return [...TEST_REMOTE_VERSIONS];
+  }
   return new Promise((resolve, reject) => {
     const versions: string[] = [];
     
@@ -113,17 +119,23 @@ export async function fetchBunVersionsFromGit(): Promise<string[]> {
  * Main function to get Bun versions. Tries NPM, then falls back to Git.
  */
 export async function fetchBunVersions(): Promise<string[]> {
+  if (IS_TEST_MODE) {
+    return [...TEST_REMOTE_VERSIONS];
+  }
   // Strategy 1: NPM
   try {
     const versions = await fetchBunVersionsFromNpm();
-    return versions;
+    const uniqueAndSortedVersions = Array.from(new Set(versions.filter(v => semver.valid(v))));
+    return uniqueAndSortedVersions.sort(semver.rcompare);
   } catch (npmError: any) {
     // Strategy 2: Git
     try {
-      const versions = await fetchBunVersionsFromGit();
-      if (versions.length > 0) return versions;
-      throw new Error('No versions found via Git');
-    } catch (gitError: any) {
+          const versions = await fetchBunVersionsFromGit();
+          if (versions.length > 0) {
+              const uniqueAndSortedVersions = Array.from(new Set(versions.filter(v => semver.valid(v))));
+              return uniqueAndSortedVersions.sort(semver.rcompare);
+          }
+          throw new Error('No versions found via Git');    } catch (gitError: any) {
       throw new Error(`Failed to fetch versions. NPM: ${npmError.message}. Git: ${gitError.message}`);
     }
   }
@@ -135,67 +147,37 @@ export async function fetchBunVersions(): Promise<string[]> {
  * @returns The download URL and the exact version found.
  */
 export async function findBunDownloadUrl(targetVersion: string): Promise<{ url: string; foundVersion: string } | null> {
-  let versions: string[];
-  try {
-    versions = await fetchBunVersions();
-  } catch (error) {
-    console.error(chalk.red('Error fetching version list.'));
-    // Fallback: If strict version requested, try blindly constructing URL
-    if (targetVersion !== 'latest' && semver.valid(targetVersion)) {
-        console.warn(chalk.yellow(`Attempting to install ${targetVersion} blindly...`));
-        versions = [targetVersion];
-    } else {
-        throw error;
+    let fullVersion = normalizeVersion(targetVersion); // Ensure 'v' prefix
+  
+  if (!semver.valid(fullVersion)) {
+        console.error(chalk.red(`Invalid version provided to findBunDownloadUrl: ${targetVersion}`));
+        return null;
     }
-  }
-
-  let foundVersion: string | undefined;
-
-  if (targetVersion === 'latest') {
-    const validVersions = versions.filter(v => semver.valid(v) && !semver.prerelease(v));
-    validVersions.sort(semver.rcompare);
-    foundVersion = validVersions[0];
-  } else {
-    const normalizedTarget = normalizeVersion(targetVersion).replace(/^v/, ''); 
+    if (IS_TEST_MODE) {
+        return {
+          url: `https://example.com/${getBunAssetName(fullVersion)}`,
+          foundVersion: fullVersion,
+        };
+    }
+    // Construct GitHub Download URL
+    // Format: https://github.com/oven-sh/bun/releases/download/bun-v{version}/bun-{platform}-{arch}.zip
+    const tagNameVersion = fullVersion.startsWith('v') ? fullVersion.substring(1) : fullVersion; // Strip 'v' for tagName
+    const tagName = `bun-v${tagNameVersion}`;
+    const assetName = getBunAssetName(fullVersion); // Use fullVersion for assetName lookup
     
-    // 1. Exact match search
-    if (versions.includes(normalizedTarget)) {
-        foundVersion = normalizedTarget;
-    } 
-    // 2. Semver range search
-    else if (semver.validRange(normalizedTarget)) {
-      const validVersions = versions.filter(v => semver.satisfies(v, normalizedTarget));
-      validVersions.sort(semver.rcompare);
-      foundVersion = validVersions[0];
+    let baseUrl = 'https://github.com';
+    const mirror = process.env.BVM_GITHUB_MIRROR;
+    
+    if (mirror) {
+        const cleanMirror = mirror.endsWith('/') ? mirror.slice(0, -1) : mirror;
+        baseUrl = `${cleanMirror}/https://github.com`;
+    } else if (isChina()) {
+        console.log(chalk.gray('Tip: Set BVM_GITHUB_MIRROR="https://mirror.ghproxy.com/" to accelerate downloads in China.'));
     }
-    // 3. Fallback for explicit request if not found in list (maybe new version not yet in npm/git list?)
-    else if (semver.valid(normalizedTarget)) {
-       foundVersion = normalizedTarget;
-    }
-  }
-
-  if (!foundVersion) {
-    return null;
-  }
-
-  // Construct GitHub Download URL
-  // Format: https://github.com/oven-sh/bun/releases/download/bun-v{version}/bun-{platform}-{arch}.zip
-  const tagName = `bun-v${foundVersion}`;
-  const assetName = getBunAssetName(foundVersion);
   
-  let baseUrl = 'https://github.com';
-  const mirror = process.env.BVM_GITHUB_MIRROR;
-  
-  if (mirror) {
-      const cleanMirror = mirror.endsWith('/') ? mirror.slice(0, -1) : mirror;
-      baseUrl = `${cleanMirror}/https://github.com`;
-  } else if (isChina()) {
-      console.log(chalk.gray('Tip: Set BVM_GITHUB_MIRROR="https://mirror.ghproxy.com/" to accelerate downloads in China.'));
-  }
-
-  const url = `${baseUrl}/oven-sh/bun/releases/download/${tagName}/${assetName}`;
-
-  return { url, foundVersion: `v${foundVersion}` };
+    const url = `${baseUrl}/oven-sh/bun/releases/download/${tagName}/${assetName}`;
+    const returnValue = { url, foundVersion: fullVersion };
+    return returnValue;
 }
 
 /**

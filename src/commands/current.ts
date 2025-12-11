@@ -39,5 +39,6 @@ export async function displayCurrentVersion(): Promise<void> {
   } catch (error: any) {
     spinner.fail(chalk.red(`Failed to determine current Bun version: ${error.message}`));
     console.error(error);
+    throw error;
   }
 }

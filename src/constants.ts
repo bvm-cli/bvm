@@ -4,6 +4,8 @@ import { join } from 'path';
 // Platform detection
 export const OS_PLATFORM = process.platform;
 export const CPU_ARCH = process.arch;
+export const IS_TEST_MODE = process.env.BVM_TEST_MODE === 'true';
+export const TEST_REMOTE_VERSIONS = ['v1.3.4', 'v1.2.23', 'v1.0.0', 'bun-v1.4.0-canary'];
 
 // BVM Home Directory (~/.bvm)
 export const BVM_DIR = join(homedir(), '.bvm');
@@ -67,4 +69,3 @@ export function getBunAssetName(version: string): string {
   // Example: bun-darwin-aarch64.zip, bun-linux-x64.zip
   return `bun-${platform}-${arch}.zip`;
 }
-

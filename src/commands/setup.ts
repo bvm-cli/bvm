@@ -3,7 +3,7 @@ import { homedir } from 'os';
 import { pathExists, ensureDir, removeDir } from '../utils';
 import { BVM_BIN_DIR, BVM_DIR, EXECUTABLE_NAME } from '../constants';
 import chalk from 'chalk';
-import { readFile, appendFile } from 'fs/promises';
+import { readFile, appendFile, chmod, writeFile } from 'fs/promises';
 import inquirer from 'inquirer';
 
 /**
@@ -47,15 +47,38 @@ export async function configureShell(): Promise<void> {
     return;
   }
 
-  if (!(await pathExists(configFile))) {
-      await Bun.write(configFile, '');
-  }
+  await ensureDir(BVM_BIN_DIR); // This is already here
 
-  const content = await readFile(configFile, 'utf8');
+  // Copy bvm-init.sh
+  const bvmInitShPath = join(BVM_BIN_DIR, 'bvm-init.sh');
+  await Bun.write(bvmInitShPath, await Bun.file(join(process.cwd(), 'src/bvm-init.sh')).text());
+  await chmod(bvmInitShPath, 0o755); // Make it executable
+
+  // Copy bvm-init.fish
+  const bvmInitFishPath = join(BVM_BIN_DIR, 'bvm-init.fish');
+  await Bun.write(bvmInitFishPath, await Bun.file(join(process.cwd(), 'src/bvm-init.fish')).text());
+  await chmod(bvmInitFishPath, 0o755); // Make it executable
+
+  let content = '';
+  try {
+    content = await readFile(configFile, 'utf8');
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      await writeFile(configFile, '');
+      content = '';
+    } else {
+      throw error;
+    }
+  }
   const exportStr = `export BVM_DIR="${BVM_DIR}"
-export PATH="$BVM_DIR/bin:$PATH"`;
+export PATH="$BVM_DIR/bin:$PATH"
+[ -s "$BVM_DIR/bin/bvm-init.sh" ] && . "$BVM_DIR/bin/bvm-init.sh" # Load BVM default init`;
+
   const fishStr = `set -Ux BVM_DIR "${BVM_DIR}"
-fish_add_path "$BVM_DIR/bin"`;
+fish_add_path "$BVM_DIR/bin"
+if test -f "$BVM_DIR/bin/bvm-init.fish"
+  source "$BVM_DIR/bin/bvm-init.fish"
+end`;
 
   const targetStr = shellName === 'fish' ? 'BVM_DIR' : 'export BVM_DIR';
 
@@ -130,6 +153,7 @@ $env:PATH = "$env:BVM_DIR\bin;$env:PATH"
 
 async function checkConflicts(): Promise<void> {
     if (process.env.BVM_TEST_MODE) return;
+    if (process.env.BVM_SUPPRESS_CONFLICT_WARNING === 'true') return;
 
     const paths = (process.env.PATH || '').split(delimiter);
     const officialBunPath = join(homedir(), '.bun');
@@ -141,6 +165,10 @@ async function checkConflicts(): Promise<void> {
 
         const bunPath = join(p, EXECUTABLE_NAME);
         if (await pathExists(bunPath)) {
+            // New condition: If the path contains 'node_modules', skip this conflict check.
+            if (p.includes('node_modules')) {
+                continue; // Skip this path and check the next one
+            }
             
             // Case 1: Official Bun (~/.bun)
             if (p === officialBunBin || p === officialBunPath) { 

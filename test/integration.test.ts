@@ -1,5 +1,5 @@
 import { beforeAll, afterAll, describe, expect, test, vi } from "bun:test";
-import { runBvm } from "./_utils";
+// import { runBvm } from "../src/utils";
 import { BVM_DIR, BVM_VERSIONS_DIR, BVM_CURRENT_BUN_PATH, EXECUTABLE_NAME, REPO_FOR_BVM_CLI, ASSET_NAME_FOR_BVM } from "../src/constants";
 import { existsSync, rmSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join, dirname } from "path";
@@ -45,6 +45,15 @@ describe("CLI Integration Suite", () => {
   beforeAll(async () => {
     await rmSync(TEST_HOME, { recursive: true, force: true });
     await mkdirSync(TEST_HOME, { recursive: true });
+    // Also ensure .bvm dir is created for initial operations
+    await mkdirSync(TEST_BVM_DIR, { recursive: true }); 
+    // Clear any previous aliases that might exist from prior runs
+    await rmSync(join(TEST_BVM_DIR, "alias"), { recursive: true, force: true });
+    await mkdirSync(join(TEST_BVM_DIR, "alias"), { recursive: true });
+
+    // Pre-install some versions for fuzzy matching tests
+    await runBvm(["install", "1.3.4"]);
+    await runBvm(["install", "1.2.23"]);
   });
 
   afterAll(async () => {
@@ -58,13 +67,58 @@ describe("CLI Integration Suite", () => {
     expect(allOutput).toContain("v1.0.0");
   });
 
+  test("ls-remote filters out canary versions", async () => {
+    const { exitCode, allOutput } = await runBvm(["ls-remote"]);
+    expect(exitCode).toBe(0);
+    expect(allOutput).not.toContain("canary");
+  });
+
+  // --- Fuzzy Version Matching ---
+  test("use fuzzy version (e.g., 1.3 to v1.3.4)", async () => {
+    const { exitCode, allOutput } = await runBvm(["use", "1.3"]);
+    expect(exitCode).toBe(0);
+    expect(allOutput).toContain("Bun v1.3.4 is now active.");
+  });
+
+  test("install fuzzy version (e.g., 1.2 to v1.2.23) and reports already installed", async () => {
+    const { exitCode, allOutput } = await runBvm(["install", "1.2"]);
+    expect(exitCode).toBe(0);
+    expect(allOutput).toContain("Bun v1.2.23 is already installed.");
+  });
+
+  test("use latest resolves to highest installed", async () => {
+    const { exitCode, allOutput } = await runBvm(["use", "latest"]);
+    expect(exitCode).toBe(0);
+    expect(allOutput).toContain("Bun v1.3.4 is now active.");
+  });
+
+  test("install latest installs/reports latest remote", async () => {
+    // This test assumes a remote version is available. It should report already installed if 1.3.4 is latest.
+    const { exitCode, allOutput } = await runBvm(["install", "latest"]);
+    expect(exitCode).toBe(0);
+    // Depending on actual latest remote, this could be "installed successfully" or "already installed"
+    expect(allOutput).toMatch(/Bun v\d+\.\d+\.\d+ (installed successfully|is already installed)/);
+  });
+
+  test("use invalid partial version fails gracefully", async () => {
+    const { exitCode, allOutput } = await runBvm(["use", "99.x"]);
+    expect(exitCode).not.toBe(0);
+    expect(allOutput).toContain("Bun version '99.x' is not installed or cannot be resolved.");
+  });
+
+  test("install invalid partial version fails gracefully", async () => {
+    const { exitCode, allOutput } = await runBvm(["install", "99.x"]);
+    expect(exitCode).not.toBe(0);
+    expect(allOutput).toContain("Could not find a Bun release for '99.x' compatible with your system.");
+  });
+
   // --- Installation ---
   test("install 1.0.0 (fresh)", async () => {
     const { exitCode, allOutput } = await runBvm(["install", "1.0.0"]);
     expect(exitCode).toBe(0);
     const binPath = join(TEST_BVM_DIR, "versions", "v1.0.0", "bun");
     expect(await Bun.file(binPath).exists()).toBe(true);
-  }, 120000);
+  });
 
   test("install 1.0.0 (re-install should skip)", async () => {
     const { exitCode, allOutput } = await runBvm(["install", "1.0.0"]);
@@ -212,5 +266,5 @@ describe("CLI Integration Suite", () => {
       expect(allOutput).includes("BVM updated successfully");
     }
   });
-});
+}, 120000);
 

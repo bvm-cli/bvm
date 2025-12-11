@@ -14,20 +14,21 @@ import { resolveLocalVersion } from './version';
 export async function createAlias(aliasName: string, targetVersion: string): Promise<void> {
   const spinner = ora(`Creating alias '${aliasName}' for Bun ${targetVersion}...`).start();
   try {
-    // Resolve the target version to a concrete installed version if possible
-    let normalizedTargetVersion = await resolveLocalVersion(targetVersion);
+    // Resolve the target version to a concrete installed version
+    const resolvedVersion = await resolveLocalVersion(targetVersion);
     
-    if (!normalizedTargetVersion) {
-        // If not found (e.g. not installed), try to normalize just in case it's a future version string
-        normalizedTargetVersion = normalizeVersion(targetVersion);
+    if (!resolvedVersion) {
+        spinner.fail(chalk.red(`Bun version '${targetVersion}' is not installed. Cannot create alias.`));
+        console.log(chalk.blue(`Please install Bun ${targetVersion} first using: bvm install ${targetVersion}`));
+        process.exit(1);
     }
 
-    const versionPath = join(BVM_VERSIONS_DIR, normalizedTargetVersion);
+    const versionPath = join(BVM_VERSIONS_DIR, resolvedVersion);
 
-    // 1. Check if the target version is installed
+    // 1. Check if the target version is installed (redundant after resolveLocalVersion, but harmless)
     if (!(await pathExists(versionPath))) {
-      spinner.fail(chalk.red(`Bun ${targetVersion} (resolved: ${normalizedTargetVersion}) is not installed. Cannot create alias.`));
-      console.log(chalk.blue(`You can install it using: bvm install ${targetVersion}`));
+      // This case should ideally not be hit if resolveLocalVersion works correctly.
+      spinner.fail(chalk.red(`Internal Error: Resolved Bun version ${resolvedVersion} not found.`));
       process.exit(1);
     }
 
@@ -36,9 +37,9 @@ export async function createAlias(aliasName: string, targetVersion: string): Pro
 
     // 3. Write the alias file
     const aliasFilePath = join(BVM_ALIAS_DIR, aliasName);
-    await writeFile(aliasFilePath, normalizedTargetVersion, 'utf8');
+    await writeFile(aliasFilePath, resolvedVersion, 'utf8');
 
-    spinner.succeed(chalk.green(`Alias '${aliasName}' created for Bun ${normalizedTargetVersion}.`));
+    spinner.succeed(chalk.green(`Alias '${aliasName}' created for Bun ${resolvedVersion}.`));
   } catch (error: any) {
     spinner.fail(chalk.red(`Failed to create alias '${aliasName}': ${error.message}`));
     console.error(error);

@@ -75,27 +75,29 @@ Add this line to your shell's configuration file for a persistent effect.
 ## 💡 Usage
 
 ```bash
-# Display all available commands and options
-bvm --help
+# 开发阶段：默认使用真实 HOME
+npm run bvm -- ls
 
-# List all available remote Bun versions
-bvm ls-remote
+# 隔离测试：使用仓库本地的 .sandbox-home
+npm run bvm:sandbox -- install 1.0.0
+
+# Display all available commands and options
+npm run bvm -- --help
 
 # Install a specific Bun version
-bvm install 1.0.0
-bvm install latest             # Install the latest stable version
-bvm install                    # Installs the version specified in a local .bvmrc file
+npm run bvm -- install 1.0.0
+npm run bvm -- install latest             # Install the latest stable version
+npm run bvm -- install                    # Installs the version specified in a local .bvmrc file
 
 # Switch to a specific Bun version (globally for new shell sessions)
-bvm use 1.0.0
-bvm use                        # Switches to the version specified in a local .bvmrc file
+npm run bvm -- use 1.0.0
+npm run bvm -- use                        # Switches to the version specified in a local .bvmrc file
 
 # List locally installed Bun versions and configured aliases
 bvm ls
 bvm list                       # Alias for ls
 
-# Display the currently activated Bun version
-bvm current
+```
 
 # Display the installation path for a specific Bun version
 bvm which 1.0.0

@@ -16,11 +16,12 @@ export async function listRemoteVersions(): Promise<void> {
     // Filter for valid semver just in case
     const sortedVersions = versions
       .filter(v => semver.valid(v))
+      .filter(v => !v.includes('canary'))
       .sort(semver.rcompare);
 
     if (sortedVersions.length === 0) {
         spinner.fail(chalk.yellow('No versions found.'));
-        return;
+        throw new Error('No remote Bun versions found.');
     }
 
     spinner.succeed(chalk.green('Available remote Bun versions:'));
@@ -29,5 +30,6 @@ export async function listRemoteVersions(): Promise<void> {
     });
   } catch (error: any) {
     spinner.fail(chalk.red(`Failed to fetch remote Bun versions: ${error.message}`));
+    throw error;
   }
 }

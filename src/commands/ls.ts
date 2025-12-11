@@ -67,5 +67,6 @@ export async function listLocalVersions(): Promise<void> {
   } catch (error: any) {
     spinner.fail(chalk.red(`Failed to list local Bun versions: ${error.message}`));
     console.error(error);
+    throw error;
   }
 }

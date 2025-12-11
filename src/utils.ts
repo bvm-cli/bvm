@@ -107,3 +107,48 @@ export async function getInstalledVersions(): Promise<string[]> {
   const dirs = await readDir(BVM_VERSIONS_DIR);
   return dirs.filter(dir => semver.valid(normalizeVersion(dir))).sort(semver.rcompare);
 }
+
+/**
+ * Resolves a target version string (e.g., "1.3", "latest") to an exact full version
+ * from a list of available versions.
+ * @param targetVersion The desired version string (e.g., "1.3", "v1.3.4", "latest").
+ * @param availableVersions An array of full, valid semver strings (e.g., "v1.3.4").
+ * @returns The resolved full version string (e.g., "v1.3.4") or null if no match.
+ */
+export function resolveVersion(targetVersion: string, availableVersions: string[]): string | null {
+  if (!targetVersion || availableVersions.length === 0) {
+    return null;
+  }
+
+  const normalizedTarget = normalizeVersion(targetVersion);
+
+  // 1. Exact match
+  if (availableVersions.includes(normalizedTarget)) {
+    return normalizedTarget;
+  }
+
+  // 2. Handle "latest" keyword
+  if (targetVersion.toLowerCase() === 'latest') {
+    // availableVersions should already be rsorted, so the first one is latest
+    return availableVersions[0];
+  }
+
+  // 3. Fuzzy match (e.g., "1.3" should resolve to "v1.3.4")
+  // Create a semver range from the target version
+  let range: string;
+  if (!targetVersion.startsWith('v')) {
+    range = `~${targetVersion}`; // e.g., "1.2" -> "~1.2"
+  } else {
+    range = `~${targetVersion.substring(1)}`; // e.g., "v1.2" -> "~1.2"
+  }
+
+  const matches = availableVersions.filter(v => semver.satisfies(v, range));
+
+  if (matches.length > 0) {
+    // Return the highest version that satisfies the range
+    return matches.sort(semver.rcompare)[0];
+  }
+
+  return null;
+}
+

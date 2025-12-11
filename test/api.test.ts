@@ -22,12 +22,7 @@ describe("API", () => {
     expect(versions).toContain("1.0.0"); // Bun 1.0.0 exists
   });
 
-  test("findBunDownloadUrl resolves latest", async () => {
-    const result = await findBunDownloadUrl("latest");
-    expect(result).not.toBeNull();
-    expect(result?.url).toContain("github.com/oven-sh/bun/releases/download");
-    expect(result?.foundVersion).toMatch(/^v\d+\.\d+\.\d+/);
-  });
+
 
   test("findBunDownloadUrl resolves specific version", async () => {
     const result = await findBunDownloadUrl("1.0.0");

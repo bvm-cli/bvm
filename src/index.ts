@@ -61,102 +61,180 @@ Note:
 // Placeholder for commands
 cli.command('install [version]', 'Install a Bun version')
   .action(async (version?: string) => {
-    await installBunVersion(version);
+    try {
+      await installBunVersion(version);
+    } catch (error: any) {
+      ora().fail(chalk.red(`${error.message}`));
+      process.exit(1);
+    }
   });
 
 cli.command('ls', 'List installed Bun versions')
   .alias('list')
   .action(async () => {
-    await listLocalVersions();
+    try {
+      await listLocalVersions();
+    } catch (error: any) {
+      ora().fail(chalk.red(`${error.message}`));
+      process.exit(1);
+    }
   });
 
 cli.command('ls-remote', 'List all available remote Bun versions')
   .action(async () => {
-    await listRemoteVersions();
+    try {
+      await listRemoteVersions();
+    } catch (error: any) {
+      ora().fail(chalk.red(`${error.message}`));
+      process.exit(1);
+    }
   });
 
 cli.command('use [version]', 'Switch to a specific Bun version')
   .action(async (version?: string) => {
-    await useBunVersion(version);
+    try {
+      await useBunVersion(version);
+    } catch (error: any) {
+      ora().fail(chalk.red(`${error.message}`));
+      process.exit(1);
+    }
   });
 
 cli.command('current', 'Display the currently active Bun version')
   .action(async (version?: string) => {
-    await displayCurrentVersion();
+    try {
+      await displayCurrentVersion();
+    } catch (error: any) {
+      ora().fail(chalk.red(`${error.message}`));
+      process.exit(1);
+    }
   });
 
 cli.command('uninstall <version>', 'Uninstall a Bun version')
   .action(async (version: string) => {
-    await uninstallBunVersion(version);
+    try {
+      await uninstallBunVersion(version);
+    } catch (error: any) {
+      ora().fail(chalk.red(`${error.message}`));
+      process.exit(1);
+    }
   });
 
 cli.command('alias <name> <version>', 'Create an alias for a Bun version')
   .action(async (name: string, version: string) => {
-    await createAlias(name, version);
+    try {
+      await createAlias(name, version);
+    } catch (error: any) {
+      ora().fail(chalk.red(`${error.message}`));
+      process.exit(1);
+    }
   });
 
 cli.command('unalias <name>', 'Remove an existing alias')
   .action(async (name: string) => {
-    await removeAlias(name);
+    try {
+      await removeAlias(name);
+    } catch (error: any) {
+      ora().fail(chalk.red(`${error.message}`));
+      process.exit(1);
+    }
   });
 
 cli.command('run <version> [...args]', 'Run a command with a specific Bun version')
-  .allowUnknownOptions()
   .action(async (version: string) => {
-    // Manually extract args to preserve flags like --version
-    const runIndex = process.argv.indexOf('run');
-    
-    let rawArgs: string[] = [];
-    if (runIndex !== -1 && process.argv.length > runIndex + 2) {
-        rawArgs = process.argv.slice(runIndex + 2);
+    try {
+      // Manually extract args to preserve flags like --version
+      const runIndex = process.argv.indexOf('run');
+      
+      let rawArgs: string[] = [];
+      if (runIndex !== -1 && process.argv.length > runIndex + 2) {
+          rawArgs = process.argv.slice(runIndex + 2);
+      }
+      
+      await runWithBunVersion(version, rawArgs);
+    } catch (error: any) {
+      ora().fail(chalk.red(`${error.message}`));
+      process.exit(1);
     }
-    
-    await runWithBunVersion(version, rawArgs);
   });
 
 cli.command('exec <version> <cmd> [...args]', 'Execute a command with a specific Bun version\'s environment')
-  .allowUnknownOptions()
   .action(async (version: string, cmd: string) => {
-     // Manually extract args
-    const execIndex = process.argv.indexOf('exec');
-    
-    let rawArgs: string[] = [];
-    if (execIndex !== -1 && process.argv.length > execIndex + 3) {
-        rawArgs = process.argv.slice(execIndex + 3);
-    }
+    try {
+      // Manually extract args
+      const execIndex = process.argv.indexOf('exec');
+      
+      let rawArgs: string[] = [];
+      if (execIndex !== -1 && process.argv.length > execIndex + 3) {
+          rawArgs = process.argv.slice(execIndex + 3);
+      }
 
-    await execWithBunVersion(version, cmd, rawArgs);
+      await execWithBunVersion(version, cmd, rawArgs);
+    } catch (error: any) {
+      ora().fail(chalk.red(`${error.message}`));
+      process.exit(1);
+    }
   });
 
 cli.command('which [version]', 'Display path to installed bun version')
   .action(async (version?: string) => {
-    await whichBunVersion(version);
+    try {
+      await whichBunVersion(version);
+    } catch (error: any) {
+      ora().fail(chalk.red(`${error.message}`));
+      process.exit(1);
+    }
   });
 
 cli.command('deactivate', 'Undo effects of bvm on current shell')
   .action(async () => {
-    await deactivate();
+    try {
+      await deactivate();
+    } catch (error: any) {
+      ora().fail(chalk.red(`${error.message}`));
+      process.exit(1);
+    }
   });
 
 cli.command('version <spec>', 'Resolve the given description to a single local version')
   .action(async (spec: string) => {
-    await displayVersion(spec);
+    try {
+      await displayVersion(spec);
+    } catch (error: any) {
+      ora().fail(chalk.red(`${error.message}`));
+      process.exit(1);
+    }
   });
 
 cli.command('cache <action>', 'Manage bvm cache')
   .action(async (action: string) => {
-    await cacheCommand(action);
+    try {
+      await cacheCommand(action);
+    } catch (error: any) {
+      ora().fail(chalk.red(`${error.message}`));
+      process.exit(1);
+    }
   });
 
 cli.command('setup', 'Configure shell environment automatically')
   .action(async () => {
-    await configureShell();
+    try {
+      await configureShell();
+    } catch (error: any) {
+      ora().fail(chalk.red(`${error.message}`));
+      process.exit(1);
+    }
   });
 
 cli.command('upgrade', 'Upgrade bvm to the latest version')
   .alias('self-update')
   .action(async () => {
-    await upgradeBvm();
+    try {
+      await upgradeBvm();
+    } catch (error: any) {
+      ora().fail(chalk.red(`${error.message}`));
+      process.exit(1);
+    }
   });
 
 cli.command('help', 'Show help message')
@@ -164,16 +242,46 @@ cli.command('help', 'Show help message')
     console.log(helpMessage);
   });
 
-// Manually handle --help or -h flags if passed as a root command or global option
+// Add CAC's built-in help and version handling
+cli.version('1.0.0'); // Get this from package.json or a constant
+cli.help(); // Automatically display help on --help, -h, or unknown command
 
-if (process.argv.includes('--help') || process.argv.includes('-h')) {
+// Remove this manual check
+// if (process.argv.includes('--help') || process.argv.includes('-h')) {
+//   console.log(helpMessage);
+//   process.exit(0);
+// }
 
+// Explicitly handle unknown commands before parsing or if no command is provided
+const args = process.argv.slice(2); // Get arguments after "bun run src/index.ts"
+const commandName = args[0]; // First argument is usually the command name
+
+// Get a list of all defined command names
+const definedCommands = cli.commands.map(cmd => cmd.rawName.split(' ')[0]).filter(Boolean); // Filter out empty strings for root command
+
+// Check if it's a global help/version flag
+const isGlobalFlag = args.includes('--help') || args.includes('-h') || args.includes('--version') || args.includes('-v');
+
+// If no command is provided, or an unrecognized command is provided
+// and it's not a global help/version flag, then display help.
+if (!commandName && !isGlobalFlag) {
+  // No command provided, just print help
   console.log(helpMessage);
-
-  process.exit(0);
-
+  process.exit(1);
+} else if (commandName && !definedCommands.includes(commandName) && !isGlobalFlag) {
+  // Unrecognized command
+  console.error(chalk.red(`\nError: Unknown command '${commandName}'`));
+  console.log(helpMessage);
+  process.exit(1);
 }
 
+// If it's a known command, or a global flag handled by cac, proceed with parsing.
+try {
+  cli.parse();
+} catch (error: any) {
+  // This catch block might still be useful for other parsing errors (e.g., missing required args for a known command)
+  console.error(chalk.red(`\nError: ${error.message}`));
+  console.log(helpMessage);
+  process.exit(1);
+}
 
-
-const parsed = cli.parse();

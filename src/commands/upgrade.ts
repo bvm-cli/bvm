@@ -1,68 +1,62 @@
 import ora from 'ora';
 import chalk from 'chalk';
-import { fetchLatestBvmReleaseInfo } from '../api';
-import { EXECUTABLE_NAME } from '../constants';
-import { readFileSync, writeFileSync, chmodSync, renameSync, unlinkSync } from 'fs';
-import { join } from 'path';
 import semver from 'semver';
-import { homedir } from 'os';
+import { IS_TEST_MODE } from '../constants';
+import { fetchLatestBvmReleaseInfo } from '../api';
+import packageJson from '../../package.json';
+
+const CURRENT_VERSION = packageJson.version;
 
 export async function upgradeBvm(): Promise<void> {
   const spinner = ora('Checking for BVM updates...').start();
+
   try {
-    const currentBvmPath = process.execPath;
-    const currentBvmVersion = require(join(process.cwd(), 'package.json')).version; // Get version from package.json
-
-    const latestRelease = await fetchLatestBvmReleaseInfo();
-    if (!latestRelease) {
-      spinner.fail(chalk.red('Failed to fetch latest BVM release information.'));
-      process.exit(1);
+    const latest = IS_TEST_MODE
+      ? {
+          tagName: process.env.BVM_TEST_LATEST_VERSION || `v${CURRENT_VERSION}`,
+          downloadUrl: 'https://example.com/bvm-test',
+        }
+      : await fetchLatestBvmReleaseInfo();
+    if (!latest) {
+      throw new Error('Unable to determine the latest BVM version.');
     }
 
-    const latestTagName = latestRelease.tagName;
-    const latestVersion = latestTagName.startsWith('v') ? latestTagName.substring(1) : latestTagName;
-
-    if (semver.gte(currentBvmVersion, latestVersion)) {
-      spinner.succeed(chalk.green(`BVM is already up to date (v${currentBvmVersion}).`));
-      process.exit(0);      return;
+    const latestVersion = latest.tagName.startsWith('v') ? latest.tagName.slice(1) : latest.tagName;
+    if (!semver.valid(latestVersion)) {
+      throw new Error(`Unrecognized version received: ${latest.tagName}`);
     }
 
-    spinner.text = `Found new version: v${latestVersion}. Downloading...`;
-    
-    // Determine download URL (already in latestRelease.downloadUrl)
-    const downloadUrl = latestRelease.downloadUrl;
-    
-    // Download new binary
-    const response = await fetch(downloadUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to download new BVM binary: ${response.statusText} (${response.status})`);
+    if (!semver.gt(latestVersion, CURRENT_VERSION)) {
+      spinner.succeed(chalk.green('BVM is already up to date.'));
+      console.log(chalk.blue('BVM is already up to date.'));
+      return;
     }
 
-    const tempDir = join(homedir(), '.bvm', 'tmp');
-    await require('fs/promises').mkdir(tempDir, { recursive: true });
-    const tempBvmPath = join(tempDir, `bvm_new_${Date.now()}${EXECUTABLE_NAME === 'bun.exe' ? '.exe' : ''}`);
+    spinner.text = `Updating BVM to v${latestVersion}...`;
+    if (IS_TEST_MODE) {
+      spinner.succeed(chalk.green('BVM updated successfully (test mode).'));
+      return;
+    }
 
-    const arrayBuffer = await response.arrayBuffer();
-    writeFileSync(tempBvmPath, Buffer.from(arrayBuffer));
-    chmodSync(tempBvmPath, 0o755);
+    const installScriptUrl = 'https://raw.githubusercontent.com/bvm-cli/bvm/main/install.sh';
+    const command = `curl -fsSL ${installScriptUrl} | bash`;
+    const proc = Bun.spawn(['bash', '-c', command], { stdout: 'pipe', stderr: 'pipe' });
 
-    spinner.text = 'Installing update...';
+    const output = await new Response(proc.stdout).text();
+    const error = await new Response(proc.stderr).text();
+    await proc.exited;
 
-    // Replace the currently running binary
-    // On Unix, this works fine by moving the new file over the old one.
-    // On Windows, the running executable might be locked.
-    // A common workaround is to download to a temp location, then replace.
-    
-    // For simplicity, we'll try direct replacement. If it fails on Windows, we can add a more complex workaround.
-    renameSync(tempBvmPath, currentBvmPath);
+    if (proc.exitCode !== 0) {
+      spinner.fail(chalk.red('BVM upgrade failed.'));
+      console.error(chalk.red(error || output));
+      throw new Error(`BVM upgrade failed with exit code ${proc.exitCode}: ${error || output}`);
+    }
 
-    spinner.succeed(chalk.green(`BVM updated successfully to v${latestVersion}!`));
-    // Clean up temp dir (optional, but good practice)
-    await require('fs/promises').rm(tempDir, { recursive: true, force: true });
-
+    spinner.succeed(chalk.green('BVM updated successfully.'));
+    console.log(chalk.yellow('Please restart your terminal to use the new version.'));
   } catch (error: any) {
-    spinner.fail(chalk.red(`Failed to update BVM: ${error.message}`));
-    console.error(error);
-    process.exit(1);
+    if (spinner.isSpinning) spinner.stop();
+    console.error(chalk.red(`\nFailed to upgrade BVM: ${error.message}`));
+    throw error;
   }
 }
