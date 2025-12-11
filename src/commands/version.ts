@@ -5,6 +5,7 @@ import { getInstalledVersions, normalizeVersion, pathExists } from '../utils';
 import { readlink } from 'fs/promises';
 import semver from 'semver';
 import chalk from 'chalk';
+import { withSpinner } from '../command-runner';
 
 /**
  * Resolves a version-ish string to an installed version.
@@ -72,11 +73,16 @@ export async function resolveLocalVersion(spec: string): Promise<string | null> 
 }
 
 export async function displayVersion(spec: string): Promise<void> {
-  const version = await resolveLocalVersion(spec);
-  if (version) {
-    console.log(version);
-  } else {
-    console.log(chalk.red('N/A'));
-    process.exit(1);
-  }
+  await withSpinner(
+    `Resolving version '${spec}'...`,
+    async () => {
+      const version = await resolveLocalVersion(spec);
+      if (version) {
+        console.log(version);
+      } else {
+        throw new Error('N/A');
+      }
+    },
+    { failMessage: `Failed to resolve version '${spec}'` },
+  );
 }

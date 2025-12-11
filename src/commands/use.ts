@@ -1,11 +1,11 @@
 import { join } from 'path';
 import { BVM_BIN_DIR, BVM_VERSIONS_DIR, EXECUTABLE_NAME } from '../constants';
 import { createSymlink, ensureDir, pathExists, normalizeVersion, resolveVersion, getInstalledVersions } from '../utils';
-import ora from 'ora';
 import chalk from 'chalk';
 import semver from 'semver';
 import { getRcVersion } from '../rc';
 import { resolveLocalVersion } from './version';
+import { withSpinner } from '../command-runner';
 
 /**
  * Switches to a specific Bun version.
@@ -26,9 +26,10 @@ export async function useBunVersion(targetVersion?: string): Promise<void> {
     throw new Error('No version specified and no .bvmrc found.');
   }
 
-  const spinner = ora(`Attempting to use Bun ${versionToUse}...`).start();
-  try {
-    let finalResolvedVersion: string | null = null;
+  await withSpinner(
+    `Attempting to use Bun ${versionToUse}...`,
+    async (spinner) => {
+      let finalResolvedVersion: string | null = null;
 
     // First, try resolving using resolveLocalVersion (handles aliases, 'current', 'latest' from installed)
     const resolvedFromLocal = await resolveLocalVersion(versionToUse);
@@ -41,7 +42,6 @@ export async function useBunVersion(targetVersion?: string): Promise<void> {
     }
 
     if (!finalResolvedVersion) {
-      spinner.fail(chalk.red(`Bun version '${versionToUse}' is not installed or cannot be resolved.`));
       const installed = (await getInstalledVersions()).map(v => normalizeVersion(v));
       console.log(chalk.blue(`Available installed versions: ${installed.length > 0 ? installed.join(', ') : 'None'}`));
       throw new Error(`Bun version '${versionToUse}' is not installed or cannot be resolved.`);
@@ -66,9 +66,7 @@ export async function useBunVersion(targetVersion?: string): Promise<void> {
 
     spinner.succeed(chalk.green(`Bun ${finalResolvedVersion} is now active.`));
     console.log(chalk.yellow(`Remember to add ${BVM_BIN_DIR} to your PATH environment variable to use bvm.`));
-
-  } catch (error: any) {
-    spinner.fail(chalk.red(`Failed to use Bun ${versionToUse}: ${error.message}`));
-    throw error;
-  }
+    },
+    { failMessage: () => `Failed to use Bun ${versionToUse}` },
+  );
 }

@@ -166,15 +166,6 @@ export async function findBunDownloadUrl(targetVersion: string): Promise<{ url: 
     const assetName = getBunAssetName(fullVersion); // Use fullVersion for assetName lookup
     
     let baseUrl = 'https://github.com';
-    const mirror = process.env.BVM_GITHUB_MIRROR;
-    
-    if (mirror) {
-        const cleanMirror = mirror.endsWith('/') ? mirror.slice(0, -1) : mirror;
-        baseUrl = `${cleanMirror}/https://github.com`;
-    } else if (isChina()) {
-        console.log(chalk.gray('Tip: Set BVM_GITHUB_MIRROR="https://mirror.ghproxy.com/" to accelerate downloads in China.'));
-    }
-  
     const url = `${baseUrl}/oven-sh/bun/releases/download/${tagName}/${assetName}`;
     const returnValue = { url, foundVersion: fullVersion };
     return returnValue;

@@ -51,6 +51,18 @@ spinner() {
   printf "\b "
 }
 
+cat <<EOF
+\033[36m______________   _________   \
+\______   \   \ /   /     \  
+ |    |  _/\   Y   /  \ /  \ 
+ |    |   \ \     /    Y    \
+ |______  /  \___/\____|__  /
+        \/                \/ 
+    Bun Version Manager · Built with Bun
+    Version: $LATEST_TAG
+\033[0m
+EOF
+
 echo "$(_colorize "$Blue" "Installing bvm (Bun Version Manager)...")"
 
 # Detect OS and Arch

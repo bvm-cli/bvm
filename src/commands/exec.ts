@@ -1,10 +1,10 @@
-import ora from 'ora';
 import chalk from 'chalk';
 import { join } from 'path';
 import { BVM_VERSIONS_DIR, EXECUTABLE_NAME } from '../constants';
 import { pathExists, normalizeVersion } from '../utils';
 import { spawn } from 'child_process';
 import { resolveLocalVersion } from './version';
+import { withSpinner } from '../command-runner';
 
 /**
  * Executes an arbitrary command using a specific Bun version's environment.
@@ -14,8 +14,9 @@ import { resolveLocalVersion } from './version';
  * @param args Additional arguments for the command.
  */
 export async function execWithBunVersion(targetVersion: string, command: string, args: string[]): Promise<void> {
-  const spinner = ora(`Preparing environment for Bun ${targetVersion} to execute '${command}'...`).start();
-  try {
+  await withSpinner(
+    `Preparing environment for Bun ${targetVersion} to execute '${command}'...`,
+    async (spinner) => {
     // Resolve alias or 'latest' or 'current'
     let resolvedVersion = await resolveLocalVersion(targetVersion);
     if (!resolvedVersion) {
@@ -26,8 +27,8 @@ export async function execWithBunVersion(targetVersion: string, command: string,
     const bunExecutablePath = join(installPath, EXECUTABLE_NAME); // Path to the bun executable itself
 
     // 1. Check if the specified Bun version is installed locally
-    if (!(await pathExists(bunExecutablePath))) {
-      spinner.fail(chalk.red(`Bun ${targetVersion} (resolved: ${resolvedVersion}) is not installed.`));
+      if (!(await pathExists(bunExecutablePath))) {
+        spinner.fail(chalk.red(`Bun ${targetVersion} (resolved: ${resolvedVersion}) is not installed.`));
       console.log(chalk.blue(`You can install it using: bvm install ${targetVersion}`));
       return;
     }
@@ -50,21 +51,18 @@ export async function execWithBunVersion(targetVersion: string, command: string,
       stdio: 'inherit', // Inherit stdin/stdout/stderr
     });
 
-    child.on('close', (code) => {
+      child.on('close', (code) => {
       if (code !== 0) {
         console.error(chalk.red(`Command failed with exit code ${code}`));
       }
       process.exit(code || 0); // Exit with the child process's exit code
     });
 
-    child.on('error', (err) => {
+      child.on('error', (err) => {
       console.error(chalk.red(`Failed to start command '${command}': ${err.message}`));
       process.exit(1);
     });
-
-  } catch (error: any) {
-    spinner.fail(chalk.red(`Failed to execute command with Bun ${targetVersion}'s environment: ${error.message}`));
-    console.error(error);
-    process.exit(1);
-  }
+    },
+    { failMessage: `Failed to execute command with Bun ${targetVersion}'s environment` },
+  );
 }

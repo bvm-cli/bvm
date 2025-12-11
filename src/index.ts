@@ -14,7 +14,9 @@ import { deactivate } from './commands/deactivate';
 import { displayVersion } from './commands/version';
 import { cacheCommand } from './commands/cache';
 import { configureShell } from './commands/setup';
-import { upgradeBvm } from './commands/upgrade'; // Import upgradeBvm
+import { upgradeBvm } from './commands/upgrade';
+import { doctor } from './commands/doctor';
+import { printCompletion } from './commands/completion';
 import chalk from 'chalk';
 import ora from 'ora';
 
@@ -22,10 +24,15 @@ const cli = cac('bvm');
 
 const helpMessage = `
 Bun Version Manager (bvm)
+Built with Bun · Runs with Bun · Tested on Bun
 
 Usage:
   bvm --help                                Show this message
+  npm run bvm -- <command>                  Run bvm using Bun (real HOME)
+  npm run bvm:sandbox -- <command>          Run bvm in local sandbox HOME
   bvm --version                             Print out the installed version of bvm
+  bvm doctor                                Show diagnostics for Bun/BVM setup
+  bvm completion <shell>                    Output shell completion script (bash|zsh|fish)
   bvm install [version]                     Download and install a <version>. Uses .bvmrc if available
   bvm uninstall <version>                   Uninstall a version
   bvm use [version]                         Modify PATH to use <version>. Uses .bvmrc if available
@@ -231,6 +238,26 @@ cli.command('upgrade', 'Upgrade bvm to the latest version')
   .action(async () => {
     try {
       await upgradeBvm();
+    } catch (error: any) {
+      ora().fail(chalk.red(`${error.message}`));
+      process.exit(1);
+    }
+  });
+
+cli.command('doctor', 'Show diagnostics for Bun/BVM setup')
+  .action(async () => {
+    try {
+      await doctor();
+    } catch (error: any) {
+      ora().fail(chalk.red(`${error.message}`));
+      process.exit(1);
+    }
+  });
+
+cli.command('completion <shell>', 'Generate shell completion script (bash|zsh|fish)')
+  .action(async (shell: string) => {
+    try {
+      printCompletion(shell);
     } catch (error: any) {
       ora().fail(chalk.red(`${error.message}`));
       process.exit(1);

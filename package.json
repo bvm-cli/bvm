@@ -7,7 +7,8 @@
     "dev": "npx bun run src/index.ts",
     "test": "npx bun test test/*.ts",
     "bvm": "npx bun run src/index.ts",
-    "bvm:sandbox": "mkdir -p \"$PWD/.sandbox-home\" && HOME=\"$PWD/.sandbox-home\" npx bun run src/index.ts"
+    "bvm:sandbox": "mkdir -p \"$PWD/.sandbox-home\" && HOME=\"$PWD/.sandbox-home\" npx bun run src/index.ts",
+    "release": "bun run scripts/release.ts"
   },
   "repository": {
     "type": "git",

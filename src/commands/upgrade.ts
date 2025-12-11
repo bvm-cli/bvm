@@ -1,16 +1,17 @@
-import ora from 'ora';
 import chalk from 'chalk';
 import semver from 'semver';
 import { IS_TEST_MODE } from '../constants';
 import { fetchLatestBvmReleaseInfo } from '../api';
 import packageJson from '../../package.json';
+import { withSpinner } from '../command-runner';
 
 const CURRENT_VERSION = packageJson.version;
 
 export async function upgradeBvm(): Promise<void> {
-  const spinner = ora('Checking for BVM updates...').start();
-
   try {
+    await withSpinner(
+      'Checking for BVM updates...',
+      async (spinner) => {
     const latest = IS_TEST_MODE
       ? {
           tagName: process.env.BVM_TEST_LATEST_VERSION || `v${CURRENT_VERSION}`,
@@ -54,9 +55,10 @@ export async function upgradeBvm(): Promise<void> {
 
     spinner.succeed(chalk.green('BVM updated successfully.'));
     console.log(chalk.yellow('Please restart your terminal to use the new version.'));
+      },
+      { failMessage: 'Failed to upgrade BVM' },
+    );
   } catch (error: any) {
-    if (spinner.isSpinning) spinner.stop();
-    console.error(chalk.red(`\nFailed to upgrade BVM: ${error.message}`));
-    throw error;
+    throw new Error(`Failed to upgrade BVM: ${error.message}`);
   }
 }

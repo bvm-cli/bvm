@@ -1,160 +1,203 @@
-# BVM (Bun Version Manager)
+# BVM · Bun Version Manager
 
-> **⚡️ The native version manager for Bun, driven by Bun. Cross-platform, shell-agnostic, and zero-dependency.**
+> Bun 原生的多版本管理器，跨平台、零依赖、开箱即用。
 
-`bvm` is a fast, efficient, and seamless version manager **built entirely with Bun, for the Bun JavaScript runtime**. It leverages Bun's native performance and ecosystem to provide a superior experience for managing multiple Bun installations on your system without external dependencies.
+![BVM banner](https://img.shields.io/badge/bvm-bun-blue)
 
-## ✨ Features
+## 目录
 
-*   **⚡️ Bun-Native Performance**: Built and compiled to a single native binary **using Bun**, ensuring blazing-fast execution and a minimal footprint.
-*   **📦 Zero-Dependency**: Distributed as a single executable file with no runtime dependencies.
-*   **🛠 Comprehensive Commands**: Manage your Bun versions with `install`, `use`, `ls`, `ls-remote`, `alias`, `run`, `exec`, `which`, `cache`, `deactivate`, and `setup`.
-*   **💻 Cross-Platform**: Full support for macOS (Apple Silicon & Intel), Linux (x64 & ARM64), and Windows (x64).
-*   **🌐 Optimized Network**: Automatically prioritizes fast npm mirrors for version lookup in regions like China, and guides users on configuring GitHub download acceleration.
-*   **🛡 Conflict Management**: Intelligently detects and offers interactive uninstallation of conflicting official Bun installations.
-*   **⚙️ Smart Configuration**: Automatically configures your shell's PATH variable across various shells (`bash`, `zsh`, `fish`, PowerShell).
+1. [核心特性](#核心特性)
+2. [快速上手](#快速上手)
+3. [安装方式](#安装方式)
+4. [常用命令速查](#常用命令速查)
+5. [命令演示](#命令演示)
+6. [本地开发与沙箱模式](#本地开发与沙箱模式)
+7. [环境配置与网络优化](#环境配置与网络优化)
+8. [故障排查](#故障排查)
+9. [工具对比](#工具对比)
+10. [贡献指南](#贡献指南)
+11. [卸载](#卸载)
 
-## 🚀 Installation
+---
 
-### Option 1: One-Line Install Script (Recommended)
+## 核心特性
 
-The easiest way to install `bvm` is by running our convenient install script.
+- ⚡ **Bun 原生性能**：CLI 使用 Bun 构建与运行，指令响应极快。
+- 🧪 **Bun 全链路**：开发、测试、发布脚本全部使用 Bun (`bun test`、`npm run bvm`)，保持统一体验。
+- 📦 **零运行依赖**：编译后产物为单文件二进制，适配 macOS / Linux / Windows。
+- 🧠 **智能版本管理**：支持 `install / use / ls / ls-remote / alias / run / exec / which / cache` 等常用命令，并内置 `.bvmrc` 支持。
+- 🔁 **冲突检测**：自动检测已存在的官方 Bun 安装或其他路径冲突，提供交互式处理。
+- 🌐 **网络友好**：在中国大陆自动优先使用 npm 镜像，并提示配置 GitHub 加速镜像。
+- 🧰 **可扩展脚本**：提供 `npm run bvm` 与 `npm run bvm:sandbox`，便于真实环境或隔离环境下进行调试。
+
+---
+
+## 快速上手
 
 ```bash
+# 1. 安装最新稳定版 Bun
 curl -fsSL https://raw.githubusercontent.com/bvm-cli/bvm/main/install.sh | bash
-# Or using wget:
-# wget -qO- https://raw.githubusercontent.com/bvm-cli/bvm/main/install.sh | bash
+
+# 2. 让当前 shell 识别 bvm
+source ~/.zshrc   # 或 ~/.bashrc / ~/.config/fish/config.fish
+
+# 3. 查看远端版本并安装
+bvm ls-remote
+bvm install 1.3.4
+bvm use 1.3.4
 ```
 
-### Option 2: Download Binary (For CI/Advanced Users)
+---
 
-Download the pre-compiled binary for your system from the [GitHub Releases](https://github.com/bvm-cli/bvm/releases) page.
+## 安装方式
 
-After downloading:
+| 场景 | 命令 |
+| --- | --- |
+| 推荐：一键脚本 | `curl -fsSL https://raw.githubusercontent.com/bvm-cli/bvm/main/install.sh \| bash` |
+| 备用：wget | `wget -qO- https://raw.githubusercontent.com/bvm-cli/bvm/main/install.sh \| bash` |
+| 手动下载 | 前往 [GitHub Releases](https://github.com/bvm-cli/bvm/releases) 下载对应平台二进制，赋予 `chmod +x` 后放入 `PATH` |
+| 本地构建 | `git clone … && bun install && bun build src/index.ts --compile --outfile bvm` |
 
-1.  **Grant execute permissions** (Unix/Linux/macOS only):
-    ```bash
-    chmod +x /path/to/your/bvm # e.g., chmod +x ~/Downloads/bvm
-    ```
-2.  **Move to your PATH**:
-    ```bash
-    sudo mv /path/to/your/bvm /usr/local/bin/ # On Unix/Linux/macOS
-    # On Windows, move bvm.exe to a directory in your system PATH.
-    ```
+---
 
-### Option 3: Build From Source
-
-If you have Bun already installed:
+## 常用命令速查
 
 ```bash
-git clone https://github.com/bvm-cli/bvm.git
-cd bvm
-bun install
-bun build src/index.ts --compile --outfile bvm
-./bvm help
+bvm --help                   # 全量帮助
+bvm ls-remote                # 查看远端版本
+bvm install 1.0.0            # 安装指定版本
+bvm install latest           # 安装最新稳定版
+bvm install                  # 根据 .bvmrc 安装
+
+bvm use 1.0.0                # 切换到指定版本
+bvm use                      # 根据 .bvmrc 切换
+bvm ls                       # 查看本地版本 & alias
+bvm current                  # 查看当前激活版本
+bvm which 1.0.0              # 查看安装路径
+
+bvm alias prod 1.0.0         # 创建 alias
+bvm unalias prod             # 删除 alias
+bvm run 1.0.0 --version      # 使用指定版本运行命令
+bvm exec latest bun run app  # 在指定版本环境下执行命令
+
+bvm cache dir                # 查看缓存目录
+bvm cache clear              # 清理缓存
+bvm deactivate               # 解除激活
+bvm uninstall 1.0.0          # 卸载版本
+bvm upgrade                  # 自升级
+bvm doctor                   # 输出诊断信息（安装目录、别名、环境变量）
+bvm completion zsh           # 生成指定 shell 的补全脚本
 ```
 
-## ⚙️ Configuration
-
-`bvm` automatically attempts to configure your shell's PATH variable upon its first `install` command or when you run `bvm setup`.
-
-To ensure `bvm` functions correctly, make sure `~/.bvm/bin` is in your system's `PATH`. The `bvm setup` command will append the necessary lines to your shell's configuration file (e.g., `.bashrc`, `.zshrc`, `config.fish`, or PowerShell `$PROFILE`).
-
-**After installation or running `bvm setup`, please restart your terminal or source your shell configuration file (e.g., `source ~/.zshrc`) to apply changes.**
-
-### GitHub Download Acceleration
-
-If you experience slow download speeds for GitHub Release assets, you can set the `BVM_GITHUB_MIRROR` environment variable:
+## 命令演示
 
 ```bash
-export BVM_GITHUB_MIRROR="https://mirror.ghproxy.com/" # Replace with your preferred mirror
+$ npm run bvm -- install 1.2
+- Finding Bun 1.2 release...
+✓ Bun v1.2.23 installed successfully.
+✓ Bun v1.2.23 is now active.
+
+$ npm run bvm -- doctor
+Directories
+  BVM_DIR: /Users/you/.bvm
+Environment
+  BVM_TEST_MODE: false
+Installed Versions
+  v1.3.4 (current)
+Aliases
+  default -> v1.3.4
 ```
 
-Add this line to your shell's configuration file for a persistent effect.
+---
 
-## 💡 Usage
+## 本地开发与沙箱模式
+
+为了避免污染真实 `HOME`，仓库提供两个 npm Script：
 
 ```bash
-# 开发阶段：默认使用真实 HOME
+# 使用真实 HOME（模拟最终用户）
 npm run bvm -- ls
 
-# 隔离测试：使用仓库本地的 .sandbox-home
+# 使用 ./sandbox-home 作为 HOME，便于快速清理
 npm run bvm:sandbox -- install 1.0.0
-
-# Display all available commands and options
-npm run bvm -- --help
-
-# Install a specific Bun version
-npm run bvm -- install 1.0.0
-npm run bvm -- install latest             # Install the latest stable version
-npm run bvm -- install                    # Installs the version specified in a local .bvmrc file
-
-# Switch to a specific Bun version (globally for new shell sessions)
-npm run bvm -- use 1.0.0
-npm run bvm -- use                        # Switches to the version specified in a local .bvmrc file
-
-# List locally installed Bun versions and configured aliases
-bvm ls
-bvm list                       # Alias for ls
-
 ```
 
-# Display the installation path for a specific Bun version
-bvm which 1.0.0
-bvm which latest
-bvm which current
+你也可以自定义：
 
-# Run a command with a specific Bun version (without changing the global active version)
-bvm run 1.0.0 --version        # Runs `bun --version` using Bun 1.0.0
-bvm exec latest bun run my-script.ts # Executes `bun run my-script.ts` in the environment of the latest Bun
+```bash
+export BVM_DEV_HOME=$PWD/.sandbox-home
+alias bvm-dev='HOME=$BVM_DEV_HOME npx bun run src/index.ts'
+bvm-dev install 1.2.23
+```
 
-# Uninstall a specific Bun version
-bvm uninstall 1.0.0
+---
 
-# Create an alias for a Bun version
-bvm alias default 1.0.0        # Sets 1.0.0 as the default version
-bvm alias node-lts latest      # Aliases can point to dynamic versions or specific installed versions
+## 环境配置与网络优化
 
-# Delete an existing alias
-bvm unalias default
+1. **PATH**  
+   BVM 在首次 `install` 或执行 `bvm setup` 时会尝试更新你的 shell 配置文件 (`.zshrc` / `.bashrc` / `config.fish` / PowerShell `$PROFILE`)。确保 `~/.bvm/bin` 在 `PATH` 中，并在修改后 `source` 或重启终端。
 
-# Manage bvm's cache
-bvm cache dir                  # Display the cache directory path
-bvm cache clear                # Clear the download cache
+2. **npm Registry**  
+   处于中国大陆时会优先访问 `npmmirror.com`，无需额外配置。
 
-# Deactivate the currently active bvm-managed Bun version
-bvm deactivate
+### 自动补全
 
-## ⚠️ Troubleshooting
+```bash
+# Zsh
+bvm completion zsh > ~/.config/bvm.zsh && source ~/.config/bvm.zsh
 
-*   **"Error: Unsupported OS" during install script**: Ensure your `uname -s` output is correctly handled. Update `install.sh` if necessary.
-*   **"Permission denied" / 403 on push**: Verify your SSH key is added to GitHub and your remote URL is correctly configured (`git@github.com:...`).
-*   **"Command not found: bun" after install**: Ensure `~/.bvm/bin` is correctly added to your `PATH` environment variable and your terminal is restarted or shell config sourced.
-*   **Conflicts with other Bun installations**: If `bvm` detects conflicts, it will provide interactive guidance during `bvm setup`.
+# Bash
+bvm completion bash >> ~/.bashrc && source ~/.bashrc
 
-## 🤝 Contributing
+# Fish
+bvm completion fish > ~/.config/fish/completions/bvm.fish
+```
 
-Contributions are welcome! Please feel free to open issues or submit pull requests.
+---
 
-## 🗑️ Uninstallation
+## 故障排查
 
-To completely remove `bvm` from your system:
+| 问题 | 处理 |
+| --- | --- |
+| `Command not found: bun` | 检查 `~/.bvm/bin` 是否已加入 PATH，并确认终端已重启或已 `source` 配置文件。 |
+| `CONFLICT DETECTED` | 按提示卸载官方 Bun 或自行调整 PATH，避免多个 bun 冲突。 |
+| 下载超时 | 可临时使用代理、手动下载 release 资产或在本地缓存目录放置离线包。 |
+| `.bvmrc` 无效 | 确认是在项目目录或子目录中执行 `bvm use/install`，且 `.bvmrc` 内容合法。 |
+| 测试依赖网络 | 运行 `bun test` 前建议导出 `BVM_TEST_MODE=true` 或使用仓库自带的 mock 数据。 |
 
-1.  **Remove `bvm` paths from your shell configuration**:
-    *   Edit your shell's configuration file (e.g., `~/.bashrc`, `~/.zshrc`, `~/.profile`, `~/.config/fish/config.fish` or PowerShell `$PROFILE`).
-    *   Remove all lines related to `BVM_DIR` and `PATH` modifications for `bvm` (typically added by `bvm setup`).
+---
 
-2.  **Delete the `bvm` installation directory**:
-    ```bash
-    rm -rf "$BVM_DIR" # Or rm -rf ~/.bvm
-    ```
-    If you manually moved the `bvm` binary elsewhere (e.g., `/usr/local/bin/bvm`), remember to remove it as well:
-    ```bash
-    sudo rm -f /usr/local/bin/bvm # If installed globally
-    ```
+## 工具对比
 
-3.  **Restart your terminal** or run `source` on your shell configuration file to apply changes.
+|  | **bvm (Bun)** | **bum (Rust)** |
+| --- | --- | --- |
+| 实现语言 | Bun (TypeScript) | Rust |
+| 命令覆盖 | install/use/ls/ls-remote/alias/run/exec/which/cache/doctor/completion | use/remove/list/list-remote |
+| 自动安装行为 | 安装与切换分离，输出更详细提示 | `use` 会隐式安装缺失版本 |
+| 别名/默认版本 | ✅ 别名、`.bvmrc`、PATH 检测 | 部分支持（`.bumrc`） |
+| 运行指定版本 | `bvm run/exec` | 无 |
+| 自升级 | `bvm upgrade` | 未提供 |
+| 脚本/沙箱 | `npm run bvm`、`npm run bvm:sandbox` | 主要通过 npm/npx 包装 |
 
-## 📄 License
+---
 
-This project is licensed under the MIT License.
+## 贡献指南
+
+1. Fork 项目并拉取最新 `main`。
+2. 运行 `bun install` 同步依赖，使用 `npm run bvm:sandbox` 在隔离环境验证命令。
+3. 编写/更新测试：`npx bun test test/*.ts`。
+4. 提交 `type: subject` 风格的 Commit（如 `feat: support foo`）。
+5. 在 PR 中提供动机、关键改动、测试输出，必要时附 CLI 截图。
+
+欢迎提交 Issue / Discussion 与 PR！完整细节请参见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+
+---
+
+## 卸载
+
+```bash
+rm -rf ~/.bvm
+# 或者在沙箱模式下 rm -rf <sandbox>/\.bvm
+```
+
+同时删除 shell 配置文件中添加的 `BVM_DIR` 与 `PATH` 相关行，然后重启终端即可。

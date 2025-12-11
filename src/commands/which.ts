@@ -4,6 +4,7 @@ import { pathExists, normalizeVersion } from '../utils';
 import { getRcVersion } from '../rc';
 import { readlink } from 'fs/promises';
 import chalk from 'chalk';
+import { withSpinner } from '../command-runner';
 
 /**
  * Displays the path to the executable for a specific Bun version.
@@ -17,30 +18,32 @@ export async function whichBunVersion(version?: string): Promise<void> {
     targetVersion = await getRcVersion() || undefined;
   }
 
-  // 2. If still no version (and asking for 'current' implicitly), check active symlink
-  if (!targetVersion || targetVersion === 'current') {
-    if (await pathExists(BVM_CURRENT_BUN_PATH)) {
-        try {
+  await withSpinner(
+    `Resolving Bun path for ${targetVersion || 'current'}...`,
+    async () => {
+      if (!targetVersion || targetVersion === 'current') {
+        if (await pathExists(BVM_CURRENT_BUN_PATH)) {
+          try {
             const realPath = await readlink(BVM_CURRENT_BUN_PATH);
             console.log(realPath);
-            return;
-        } catch (e) {
-            // ignore
+          } catch {
+            throw new Error('Unable to read current Bun symlink.');
+          }
+        } else {
+          throw new Error('No active Bun version found (system version is not managed by bvm).');
         }
-    } else {
-        console.error(chalk.red('No active Bun version found (system version is not managed by bvm).'));
-    }
-    return;
-  }
-  
-  // 3. Look up specific version
-  const normalized = normalizeVersion(targetVersion);
-  const binPath = join(BVM_VERSIONS_DIR, normalized, EXECUTABLE_NAME);
+        return;
+      }
 
-  if (await pathExists(binPath)) {
-    console.log(binPath);
-  } else {
-    console.log(chalk.red(`Bun ${targetVersion} (${normalized}) is not installed.`));
-    // Check if it's an alias? (Not fully implemented yet, but good to have)
-  }
+      const normalized = normalizeVersion(targetVersion);
+      const binPath = join(BVM_VERSIONS_DIR, normalized, EXECUTABLE_NAME);
+
+      if (await pathExists(binPath)) {
+        console.log(binPath);
+      } else {
+        throw new Error(`Bun ${targetVersion} (${normalized}) is not installed.`);
+      }
+    },
+    { failMessage: 'Failed to resolve Bun path' },
+  );
 }

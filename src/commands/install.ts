@@ -2,7 +2,6 @@ import { join, basename } from 'path';
 import { BVM_VERSIONS_DIR, BVM_BIN_DIR, BVM_CACHE_DIR, EXECUTABLE_NAME, IS_TEST_MODE } from '../constants';
 import { ensureDir, pathExists, createSymlink, removeDir, resolveVersion, normalizeVersion } from '../utils';
 import { findBunDownloadUrl, fetchBunVersions } from '../api';
-import ora from 'ora';
 import chalk from 'chalk';
 import { chmod } from 'fs/promises';
 import { createWriteStream } from 'fs';
@@ -11,6 +10,7 @@ import { configureShell } from './setup';
 import { getRcVersion } from '../rc';
 import { getInstalledVersions } from '../utils';
 import { createAlias } from './alias';
+import { withSpinner } from '../command-runner';
 
 /**
  * Installs a specific Bun version.
@@ -31,8 +31,10 @@ export async function installBunVersion(targetVersion?: string): Promise<void> {
     return;
   }
 
-  const spinner = ora(`Finding Bun ${versionToInstall} release...`).start();
   try {
+    await withSpinner(
+      `Finding Bun ${versionToInstall} release...`,
+      async (spinner) => {
     // Fetch all remote versions for resolution
     const remoteVersions = await fetchBunVersions();
     // Filter out 'canary' versions as they are not stable for installation
@@ -199,9 +201,9 @@ export async function installBunVersion(targetVersion?: string): Promise<void> {
 
     // Note: We DO NOT delete cachedArchivePath here. That's the point of caching.
 
-    spinner.succeed(chalk.green(`Bun ${foundVersion} installed successfully.`));
+        spinner.succeed(chalk.green(`Bun ${foundVersion} installed successfully.`));
 
-    spinner.text = `Activating Bun ${foundVersion}...`;
+        spinner.text = `Activating Bun ${foundVersion}...`;
     await ensureDir(BVM_BIN_DIR);
     await createSymlink(bunExecutablePath, join(BVM_BIN_DIR, 'bun'));
     spinner.succeed(chalk.green(`Bun ${foundVersion} is now active.`));
@@ -215,11 +217,12 @@ export async function installBunVersion(targetVersion?: string): Promise<void> {
         await createAlias('default', foundVersion); 
     }
     
-    await configureShell();
-
+        await configureShell();
+      },
+      { failMessage: `Failed to install Bun ${versionToInstall}` },
+    );
   } catch (error: any) {
-    if (spinner.isSpinning) spinner.stop();
-    throw new Error(`\nFailed to install Bun: ${error.message}`);
+    throw new Error(`Failed to install Bun: ${error.message}`);
   }
 }
 

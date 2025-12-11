@@ -1,7 +1,7 @@
 import { BVM_CACHE_DIR } from '../constants';
 import { removeDir, ensureDir } from '../utils';
 import chalk from 'chalk';
-import ora from 'ora';
+import { withSpinner } from '../command-runner';
 
 export async function cacheCommand(action: string): Promise<void> {
   if (action === 'dir') {
@@ -10,15 +10,15 @@ export async function cacheCommand(action: string): Promise<void> {
   }
 
   if (action === 'clear') {
-    const spinner = ora('Clearing cache...').start();
-    try {
-      await removeDir(BVM_CACHE_DIR);
-      // Re-create it empty
-      await ensureDir(BVM_CACHE_DIR);
-      spinner.succeed(chalk.green('Cache cleared.'));
-    } catch (error: any) {
-      spinner.fail(chalk.red(`Failed to clear cache: ${error.message}`));
-    }
+    await withSpinner(
+      'Clearing cache...',
+      async (spinner) => {
+        await removeDir(BVM_CACHE_DIR);
+        await ensureDir(BVM_CACHE_DIR);
+        spinner.succeed(chalk.green('Cache cleared.'));
+      },
+      { failMessage: 'Failed to clear cache' },
+    );
     return;
   }
 

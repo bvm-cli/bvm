@@ -1,18 +1,19 @@
-import ora from 'ora';
 import chalk from 'chalk';
 import { getInstalledVersions, getSymlinkTarget, normalizeVersion, readDir, pathExists } from '../utils';
 import { BVM_CURRENT_BUN_PATH, BVM_ALIAS_DIR, BVM_VERSIONS_DIR } from '../constants';
 import { readlink, readFile } from 'fs/promises';
 import { join } from 'path';
+import { withSpinner } from '../command-runner';
 
 /**
  * Lists all locally installed Bun versions and configured aliases.
  */
 export async function listLocalVersions(): Promise<void> {
-  const spinner = ora('Fetching locally installed Bun versions...').start();
-  try {
-    const installedVersions = await getInstalledVersions(); // Returns normalized 'vX.Y.Z'
-    let currentVersion: string | null = null; // Normalized 'vX.Y.Z'
+  await withSpinner(
+    'Fetching locally installed Bun versions...',
+    async (spinner) => {
+      const installedVersions = await getInstalledVersions(); // Returns normalized 'vX.Y.Z'
+      let currentVersion: string | null = null; // Normalized 'vX.Y.Z'
 
     // Determine the currently active version by reading the symlink target
     try {
@@ -25,7 +26,7 @@ export async function listLocalVersions(): Promise<void> {
       }
     }
 
-    spinner.succeed(chalk.green('Locally installed Bun versions:'));
+      spinner.succeed(chalk.green('Locally installed Bun versions:'));
 
     // Display installed versions
     if (installedVersions.length === 0) {
@@ -64,9 +65,7 @@ export async function listLocalVersions(): Promise<void> {
         }
     }
 
-  } catch (error: any) {
-    spinner.fail(chalk.red(`Failed to list local Bun versions: ${error.message}`));
-    console.error(error);
-    throw error;
-  }
+    },
+    { failMessage: 'Failed to list local Bun versions' },
+  );
 }
