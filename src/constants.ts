@@ -8,7 +8,9 @@ export const IS_TEST_MODE = process.env.BVM_TEST_MODE === 'true';
 export const TEST_REMOTE_VERSIONS = ['v1.3.4', 'v1.2.23', 'v1.0.0', 'bun-v1.4.0-canary'];
 
 // BVM Home Directory (~/.bvm)
-export const BVM_DIR = join(homedir(), '.bvm');
+// Prefer process.env.HOME to avoid potential issues with os.homedir() in compiled binaries
+const HOME = process.env.HOME || homedir();
+export const BVM_DIR = join(HOME, '.bvm');
 // Directory for installed Bun versions (~/.bvm/versions)
 export const BVM_VERSIONS_DIR = join(BVM_DIR, 'versions');
 // Directory for symlinks to active Bun version (~/.bvm/bin)
