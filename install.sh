@@ -142,9 +142,12 @@ BIN_DIR="${BVM_DIR}/bin"
 # Ensure directories exist
 mkdir -p "$BIN_DIR"
 
+TARGET_BIN="${BIN_DIR}/bvm${EXTENSION}"
+TEMP_BIN="${TARGET_BIN}.tmp"
+
 if [[ -n "$BVM_INSTALL_SOURCE" ]]; then
   echo "Using local installer binary: $(_colorize "$Yellow" "$BVM_INSTALL_SOURCE")"
-  cp "$BVM_INSTALL_SOURCE" "${BIN_DIR}/bvm${EXTENSION}"
+  cp "$BVM_INSTALL_SOURCE" "$TEMP_BIN"
 else
   echo "Detecting platform: $(_colorize "$Green" "${PLATFORM} ${ARCH}")${Color_Off}"
   echo "Downloading bvm from: $(_colorize "$Yellow" "$DOWNLOAD_URL")"
@@ -153,9 +156,9 @@ else
   if [[ -t 1 ]]; then # If running in a TTY, use spinner
       (
           if command -v curl >/dev/null 2>&1; then
-            curl -fsSL "$DOWNLOAD_URL" -o "${BIN_DIR}/bvm${EXTENSION}"
+            curl -fsSL "$DOWNLOAD_URL" -o "$TEMP_BIN"
           elif command -v wget >/dev/null 2>&1; then
-            wget -qO "${BIN_DIR}/bvm${EXTENSION}" "$DOWNLOAD_URL"
+            wget -qO "$TEMP_BIN" "$DOWNLOAD_URL"
           else
             echo "$(_colorize "$Red" "Error: curl or wget is required to install bvm.")"
             exit 1
@@ -163,9 +166,9 @@ else
       ) & spinner
   else # If not TTY, just show silent download
       if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "$DOWNLOAD_URL" -o "${BIN_DIR}/bvm${EXTENSION}"
+        curl -fsSL "$DOWNLOAD_URL" -o "$TEMP_BIN"
       elif command -v wget >/dev/null 2>&1; then
-        wget -qO "${BIN_DIR}/bvm${EXTENSION}" "$DOWNLOAD_URL"
+        wget -qO "$TEMP_BIN" "$DOWNLOAD_URL"
       else
         echo "$(_colorize "$Red" "Error: curl or wget is required to install bvm.")"
         exit 1
@@ -173,7 +176,8 @@ else
   fi
 fi
 
-chmod +x "${BIN_DIR}/bvm${EXTENSION}"
+chmod +x "$TEMP_BIN"
+mv -f "$TEMP_BIN" "$TARGET_BIN"
 
 echo "$(_colorize "$Green" "✓ bvm installed to ${BIN_DIR}/bvm${EXTENSION}")"
 
