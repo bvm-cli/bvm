@@ -1,7 +1,7 @@
 import { beforeAll, afterAll, describe, expect, test, vi } from "bun:test";
 // import { runBvm } from "../src/utils";
 import { BVM_DIR, BVM_VERSIONS_DIR, BVM_CURRENT_BUN_PATH, EXECUTABLE_NAME, REPO_FOR_BVM_CLI, ASSET_NAME_FOR_BVM } from "../src/constants";
-import { existsSync, rmSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, rmSync, mkdirSync, readFileSync, writeFileSync, readlinkSync } from "fs";
 import { join, dirname } from "path";
 
 
@@ -113,17 +113,50 @@ describe("CLI Integration Suite", () => {
   });
 
   // --- Installation ---
-  test("install 1.0.0 (fresh)", async () => {
-    const { exitCode, allOutput } = await runBvm(["install", "1.0.0"]);
+  test("install without version reads .bvmrc and installs target", async () => {
+    const rcInstallDir = join(TEST_HOME, "rc-install");
+    await rmSync(rcInstallDir, { recursive: true, force: true });
+    await mkdirSync(rcInstallDir, { recursive: true });
+    await writeFileSync(join(rcInstallDir, ".bvmrc"), "1.0.0");
+    await rmSync(join(TEST_BVM_DIR, "versions", "v1.0.0"), { recursive: true, force: true });
+
+    const { exitCode, allOutput } = await runBvm(["install"], rcInstallDir);
     expect(exitCode).toBe(0);
-    const binPath = join(TEST_BVM_DIR, "versions", "v1.0.0", "bun");
-    expect(await Bun.file(binPath).exists()).toBe(true);
+    expect(allOutput).toContain("Found '.bvmrc' with version <1.0.0>");
+
+    const installedBinPath = join(TEST_BVM_DIR, "versions", "v1.0.0", "bun");
+    expect(await Bun.file(installedBinPath).exists()).toBe(true);
+
+    const { allOutput: currentOutput } = await runBvm(["current"]);
+    expect(currentOutput).toContain("v1.0.0");
+
+    await runBvm(["deactivate"]);
+    const uninstallResult = await runBvm(["uninstall", "1.0.0"]);
+    expect(uninstallResult.exitCode).toBe(0);
   });
 
-  test("install 1.0.0 (re-install should skip)", async () => {
+  test("install 1.0.0 (fresh) auto-activates version", async () => {
+    const { exitCode, allOutput } = await runBvm(["install", "1.0.0"]);
+    expect(exitCode).toBe(0);
+    const installedBinPath = join(TEST_BVM_DIR, "versions", "v1.0.0", "bun");
+    expect(await Bun.file(installedBinPath).exists()).toBe(true);
+
+    const symlinkPath = join(TEST_BVM_DIR, "bin", "bun");
+    expect(existsSync(symlinkPath)).toBe(true);
+    const symlinkTarget = readlinkSync(symlinkPath);
+    expect(symlinkTarget).toContain(join("versions", "v1.0.0"));
+
+    const { allOutput: currentOutput } = await runBvm(["current"]);
+    expect(currentOutput).toContain("v1.0.0");
+  });
+
+  test("install 1.0.0 (re-install should skip but still activate)", async () => {
+    await runBvm(["use", "1.3.4"]);
     const { exitCode, allOutput } = await runBvm(["install", "1.0.0"]);
     expect(exitCode).toBe(0);
     expect(allOutput).toContain("already installed");
+    const { allOutput: currentOutput } = await runBvm(["current"]);
+    expect(currentOutput).toContain("v1.0.0");
   });
 
   test("install invalid version fails", async () => {
@@ -240,6 +273,13 @@ describe("CLI Integration Suite", () => {
     expect(exitCode).toBe(0);
   });
 
+  test("unknown command prints help but exits cleanly", async () => {
+    const { exitCode, allOutput } = await runBvm(["definitely-unknown"]);
+    expect(exitCode).toBe(0);
+    expect(allOutput).toContain("Unknown command 'definitely-unknown'");
+    expect(allOutput).toContain("Usage:");
+  });
+
   // --- Upgrade ---
   test("bvm upgrade checks for updates", async () => {
     // Import API to spy on it
@@ -267,4 +307,3 @@ describe("CLI Integration Suite", () => {
     }
   });
 }, 120000);
-

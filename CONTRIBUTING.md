@@ -16,8 +16,8 @@ bun install
 
 | 命令 | 说明 |
 | --- | --- |
-| `npm run bvm -- <cmd>` | 在真实 HOME 下运行 CLI（等同于最终用户） |
-| `npm run bvm:sandbox -- <cmd>` | 将 HOME 指向 `./.sandbox-home`，便于反复测试/清理 |
+| `npx bun run src/index.ts <cmd>` | 在真实 HOME 下运行 CLI（等同于最终用户） |
+| `HOME="$PWD/.sandbox-home" npx bun run src/index.ts <cmd>` | 将 HOME 指向沙箱目录，便于反复测试/清理 |
 | `BVM_TEST_MODE=true ...` | 让 CLI 使用内置版本列表、跳过网络操作，适用于集成测试 |
 
 ## 测试
@@ -26,7 +26,7 @@ bun install
 npx bun test test/*.ts
 ```
 
-集成测试会在沙箱 HOME 中运行多个 CLI 子进程，因此建议在 `BVM_TEST_MODE=true` 环境下执行，或使用 `npm run bvm:sandbox -- ...` 预先拉取需要的版本。
+集成测试会在沙箱 HOME 中运行多个 CLI 子进程，因此建议在 `BVM_TEST_MODE=true` 环境下执行，或使用 `HOME="$PWD/.sandbox-home" npx bun run src/index.ts ...` 预先拉取需要的版本。
 
 ## 发布流程
 

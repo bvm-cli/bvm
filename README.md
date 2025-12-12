@@ -23,12 +23,12 @@
 ## 核心特性
 
 - ⚡ **Bun 原生性能**：CLI 使用 Bun 构建与运行，指令响应极快。
-- 🧪 **Bun 全链路**：开发、测试、发布脚本全部使用 Bun (`bun test`、`npm run bvm`)，保持统一体验。
+- 🧪 **Bun 全链路**：开发、测试、发布脚本全部使用 Bun (`bun test`、`npx bun run src/index.ts`)，保持统一体验。
 - 📦 **零运行依赖**：编译后产物为单文件二进制，适配 macOS / Linux / Windows。
 - 🧠 **智能版本管理**：支持 `install / use / ls / ls-remote / alias / run / exec / which / cache` 等常用命令，并内置 `.bvmrc` 支持。
 - 🔁 **冲突检测**：自动检测已存在的官方 Bun 安装或其他路径冲突，提供交互式处理。
 - 🌐 **网络友好**：在中国大陆自动优先使用 npm 镜像，并提示配置 GitHub 加速镜像。
-- 🧰 **可扩展脚本**：提供 `npm run bvm` 与 `npm run bvm:sandbox`，便于真实环境或隔离环境下进行调试。
+- 🧰 **可扩展脚本**：直接使用 `npx bun run src/index.ts`，或配合 `HOME=<目录>` 环境变量即可在真实/沙箱环境下调试。
 
 ---
 
@@ -92,12 +92,12 @@ bvm completion zsh           # 生成指定 shell 的补全脚本
 ## 命令演示
 
 ```bash
-$ npm run bvm -- install 1.2
+$ npx bun run src/index.ts install 1.2
 - Finding Bun 1.2 release...
 ✓ Bun v1.2.23 installed successfully.
 ✓ Bun v1.2.23 is now active.
 
-$ npm run bvm -- doctor
+$ npx bun run src/index.ts doctor
 Directories
   BVM_DIR: /Users/you/.bvm
 Environment
@@ -112,14 +112,14 @@ Aliases
 
 ## 本地开发与沙箱模式
 
-为了避免污染真实 `HOME`，仓库提供两个 npm Script：
+为了避免污染真实 `HOME`，推荐直接使用 `npx bun run src/index.ts` 并按需覆写 `HOME`：
 
 ```bash
 # 使用真实 HOME（模拟最终用户）
-npm run bvm -- ls
+npx bun run src/index.ts ls
 
-# 使用 ./sandbox-home 作为 HOME，便于快速清理
-npm run bvm:sandbox -- install 1.0.0
+# 使用 ./manual-home 作为 HOME，便于快速清理
+HOME="$PWD/manual-home" npx bun run src/index.ts install 1.0.0
 ```
 
 你也可以自定义：
@@ -177,14 +177,14 @@ bvm completion fish > ~/.config/fish/completions/bvm.fish
 | 别名/默认版本 | ✅ 别名、`.bvmrc`、PATH 检测 | 部分支持（`.bumrc`） |
 | 运行指定版本 | `bvm run/exec` | 无 |
 | 自升级 | `bvm upgrade` | 未提供 |
-| 脚本/沙箱 | `npm run bvm`、`npm run bvm:sandbox` | 主要通过 npm/npx 包装 |
+| 脚本/沙箱 | `npx bun run src/index.ts`、`HOME="<dir>" npx bun run src/index.ts` | 主要通过 npx + Bun |
 
 ---
 
 ## 贡献指南
 
 1. Fork 项目并拉取最新 `main`。
-2. 运行 `bun install` 同步依赖，使用 `npm run bvm:sandbox` 在隔离环境验证命令。
+2. 运行 `bun install` 同步依赖，使用 `HOME="$PWD/manual-home" npx bun run src/index.ts <cmd>` 在隔离环境验证命令。
 3. 编写/更新测试：`npx bun test test/*.ts`。
 4. 提交 `type: subject` 风格的 Commit（如 `feat: support foo`）。
 5. 在 PR 中提供动机、关键改动、测试输出，必要时附 CLI 截图。

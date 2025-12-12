@@ -161,8 +161,9 @@ chmod +x "${BIN_DIR}/bvm${EXTENSION}"
 echo "$(_colorize "$Green" "✓ bvm installed to ${BIN_DIR}/bvm${EXTENSION}")"
 
 # Configure Shell
-echo "Configuring shell..."
+echo "Configuring shell via 'bvm setup'..."
 "${BIN_DIR}/bvm${EXTENSION}" setup
+echo "$(_colorize "$Green" "✓ Shell configured")"
 
 echo ""
 echo "$(_colorize "$Green" "🎉 bvm installed successfully!")"

@@ -1,7 +1,6 @@
 import { join } from 'path';
-import { readFile } from 'fs/promises';
 import { BVM_ALIAS_DIR, BVM_VERSIONS_DIR, BVM_CURRENT_BUN_PATH } from '../constants';
-import { getInstalledVersions, normalizeVersion, pathExists } from '../utils';
+import { getInstalledVersions, normalizeVersion, pathExists, readTextFile } from '../utils';
 import { readlink } from 'fs/promises';
 import semver from 'semver';
 import chalk from 'chalk';
@@ -41,7 +40,7 @@ export async function resolveLocalVersion(spec: string): Promise<string | null> 
   const aliasPath = join(BVM_ALIAS_DIR, spec);
   if (await pathExists(aliasPath)) {
     try {
-      const aliasTarget = (await readFile(aliasPath, 'utf8')).trim();
+      const aliasTarget = (await readTextFile(aliasPath)).trim();
       return normalizeVersion(aliasTarget);
     } catch { return null; }
   }
