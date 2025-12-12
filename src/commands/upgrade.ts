@@ -40,17 +40,32 @@ export async function upgradeBvm(): Promise<void> {
     }
 
     const installScriptUrl = 'https://raw.githubusercontent.com/bvm-cli/bvm/main/install.sh';
-    const command = `curl -fsSL ${installScriptUrl} | bash`;
-    const proc = Bun.spawn(['bash', '-c', command], { stdout: 'pipe', stderr: 'pipe' });
+    const response = await fetch(installScriptUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download install script: ${response.statusText} (${response.status})`);
+    }
+    const script = await response.text();
 
-    const output = await new Response(proc.stdout).text();
-    const error = await new Response(proc.stderr).text();
-    await proc.exited;
+    const proc = Bun.spawn({
+      cmd: ['bash'],
+      stdin: 'pipe',
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
 
-    if (proc.exitCode !== 0) {
+    proc.stdin?.write(script);
+    proc.stdin?.end();
+
+    const [output, error] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+    ]);
+    const exitCode = await proc.exited;
+
+    if ((exitCode ?? 0) !== 0) {
       spinner.fail(chalk.red('BVM upgrade failed.'));
       console.error(chalk.red(error || output));
-      throw new Error(`BVM upgrade failed with exit code ${proc.exitCode}: ${error || output}`);
+      throw new Error(`BVM upgrade failed with exit code ${exitCode}: ${error || output}`);
     }
 
     spinner.succeed(chalk.green('BVM updated successfully.'));

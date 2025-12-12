@@ -19,54 +19,89 @@ import { doctor } from './commands/doctor';
 import { printCompletion } from './commands/completion';
 import chalk from 'chalk';
 import ora from 'ora';
+import packageJson from '../package.json';
 
 const cli = cac('bvm');
+const registeredCommandNames = new Set<string>();
 
-const helpMessage = `
-Bun Version Manager (bvm)
-Built with Bun · Runs with Bun · Tested on Bun
+type CommandHelpEntry = {
+  usage: string;
+  description: string;
+};
 
-Usage:
-  bvm --help                                Show this message
-  npm run bvm -- <command>                  Run bvm using Bun (real HOME)
-  npm run bvm:sandbox -- <command>          Run bvm in local sandbox HOME
-  bvm --version                             Print out the installed version of bvm
-  bvm doctor                                Show diagnostics for Bun/BVM setup
-  bvm completion <shell>                    Output shell completion script (bash|zsh|fish)
-  bvm install [version]                     Download and install a <version>. Uses .bvmrc if available
-  bvm uninstall <version>                   Uninstall a version
-  bvm use [version]                         Modify PATH to use <version>. Uses .bvmrc if available
-  bvm deactivate                            Undo effects of \`bvm\` on current shell
-  bvm setup                                 Configure shell environment (PATH) automatically
-  bvm upgrade                               Upgrade bvm to the latest version
-  bvm self-update                           Upgrade bvm to the latest version (alias for upgrade)
-  bvm exec <version> <command>              Run <command> on <version>
-  bvm run <version> <args>                  Run \`bun\` on <version> with <args> as arguments
-  bvm current                               Display currently activated version of Bun
-  bvm ls                                    List installed versions
-  bvm list                                  List installed versions (alias for ls)
-  bvm ls-remote                             List remote versions available for install
-  bvm version <version>                     Resolve the given description to a single local version
-  bvm alias <name> <version>                Set an alias named <name> pointing to <version>
-  bvm unalias <name>                        Deletes the alias named <name>
-  bvm which [version]                       Display path to installed bun version. Uses .bvmrc if available
-  bvm cache dir                             Display path to the cache directory for bvm
-  bvm cache clear                           Empty cache directory for bvm
+const helpEntries: CommandHelpEntry[] = [];
 
-Example:
-  bvm install 1.0.0                     Install a specific version number
-  bvm use 1.0.0                         Use the specific version
-  bvm run 1.0.0 index.ts                Run index.ts using bun 1.0.0
-  bvm exec 1.0.0 bun index.ts           Run \`bun index.ts\` with the PATH pointing to bun 1.0.0
-  bvm alias default 1.0.0               Set default bun version
-  bvm upgrade                           Upgrade bvm to the latest version
+function addHelpEntry(usage: string, description: string): void {
+  helpEntries.push({ usage, description });
+}
 
-Note:
-  To remove, delete, or uninstall bvm - just remove the \`$BVM_DIR\` folder (usually \`~/.bvm\`)
-`;
+function registerCommand(
+  raw: string,
+  description: string,
+  options: { aliases?: string[] } = {},
+) {
+  const command = cli.command(raw, description);
+  const primaryName = raw.split(' ')[0];
+  registeredCommandNames.add(primaryName);
+  addHelpEntry(`bvm ${raw}`, description);
+
+  if (options.aliases) {
+    for (const alias of options.aliases) {
+      command.alias(alias);
+      registeredCommandNames.add(alias);
+      addHelpEntry(`bvm ${alias}`, `${description} (alias for ${primaryName})`);
+    }
+  }
+
+  return command;
+}
+
+function buildHelpMessage(): string {
+  const usageLines = [
+    '  bvm --help                                Show this message',
+    '  npx bun run src/index.ts <command>        Run bvm using Bun (current HOME)',
+    '  HOME="<dir>" npx bun run src/index.ts <command>  Run bvm in custom HOME (sandbox)',
+    '  bvm --version                             Print out the installed version of bvm',
+    '  bvm doctor                                Show diagnostics for Bun/BVM setup',
+    '  bvm completion <shell>                    Output shell completion script (bash|zsh|fish)',
+  ];
+
+  const commandsBlock = helpEntries
+    .map((entry) => {
+      const padded = entry.usage.padEnd(40, ' ');
+      return `  ${padded}${entry.description}`;
+    })
+    .join('\n');
+
+  const examples = [
+    '  bvm install 1.0.0                         Install a specific version number',
+    '  bvm use 1.0.0                             Use the specific version',
+    '  bvm run 1.0.0 index.ts                    Run index.ts using bun 1.0.0',
+    '  bvm exec 1.0.0 bun index.ts               Run `bun index.ts` with Bun 1.0.0 in PATH',
+    '  bvm alias default 1.0.0                   Set default bun version',
+    '  bvm upgrade                               Upgrade bvm to the latest version',
+  ];
+
+  return [
+    'Bun Version Manager (bvm)',
+    'Built with Bun · Runs with Bun · Tested on Bun',
+    '',
+    'Usage:',
+    ...usageLines,
+    '',
+    'Commands:',
+    commandsBlock,
+    '',
+    'Examples:',
+    ...examples,
+    '',
+    'Note:',
+    '  To remove, delete, or uninstall bvm - just remove the `$BVM_DIR` folder (usually `~/.bvm`)',
+  ].join('\n');
+}
 
 // Placeholder for commands
-cli.command('install [version]', 'Install a Bun version')
+registerCommand('install [version]', 'Install a Bun version')
   .action(async (version?: string) => {
     try {
       await installBunVersion(version);
@@ -76,8 +111,7 @@ cli.command('install [version]', 'Install a Bun version')
     }
   });
 
-cli.command('ls', 'List installed Bun versions')
-  .alias('list')
+registerCommand('ls', 'List installed Bun versions', { aliases: ['list'] })
   .action(async () => {
     try {
       await listLocalVersions();
@@ -87,7 +121,7 @@ cli.command('ls', 'List installed Bun versions')
     }
   });
 
-cli.command('ls-remote', 'List all available remote Bun versions')
+registerCommand('ls-remote', 'List all available remote Bun versions')
   .action(async () => {
     try {
       await listRemoteVersions();
@@ -97,7 +131,7 @@ cli.command('ls-remote', 'List all available remote Bun versions')
     }
   });
 
-cli.command('use [version]', 'Switch to a specific Bun version')
+registerCommand('use [version]', 'Switch to a specific Bun version')
   .action(async (version?: string) => {
     try {
       await useBunVersion(version);
@@ -107,7 +141,7 @@ cli.command('use [version]', 'Switch to a specific Bun version')
     }
   });
 
-cli.command('current', 'Display the currently active Bun version')
+registerCommand('current', 'Display the currently active Bun version')
   .action(async (version?: string) => {
     try {
       await displayCurrentVersion();
@@ -117,7 +151,7 @@ cli.command('current', 'Display the currently active Bun version')
     }
   });
 
-cli.command('uninstall <version>', 'Uninstall a Bun version')
+registerCommand('uninstall <version>', 'Uninstall a Bun version')
   .action(async (version: string) => {
     try {
       await uninstallBunVersion(version);
@@ -127,7 +161,7 @@ cli.command('uninstall <version>', 'Uninstall a Bun version')
     }
   });
 
-cli.command('alias <name> <version>', 'Create an alias for a Bun version')
+registerCommand('alias <name> <version>', 'Create an alias for a Bun version')
   .action(async (name: string, version: string) => {
     try {
       await createAlias(name, version);
@@ -137,7 +171,7 @@ cli.command('alias <name> <version>', 'Create an alias for a Bun version')
     }
   });
 
-cli.command('unalias <name>', 'Remove an existing alias')
+registerCommand('unalias <name>', 'Remove an existing alias')
   .action(async (name: string) => {
     try {
       await removeAlias(name);
@@ -147,7 +181,7 @@ cli.command('unalias <name>', 'Remove an existing alias')
     }
   });
 
-cli.command('run <version> [...args]', 'Run a command with a specific Bun version')
+registerCommand('run <version> [...args]', 'Run a command with a specific Bun version')
   .action(async (version: string) => {
     try {
       // Manually extract args to preserve flags like --version
@@ -165,7 +199,7 @@ cli.command('run <version> [...args]', 'Run a command with a specific Bun versio
     }
   });
 
-cli.command('exec <version> <cmd> [...args]', 'Execute a command with a specific Bun version\'s environment')
+registerCommand('exec <version> <cmd> [...args]', 'Execute a command with a specific Bun version\'s environment')
   .action(async (version: string, cmd: string) => {
     try {
       // Manually extract args
@@ -183,7 +217,7 @@ cli.command('exec <version> <cmd> [...args]', 'Execute a command with a specific
     }
   });
 
-cli.command('which [version]', 'Display path to installed bun version')
+registerCommand('which [version]', 'Display path to installed bun version')
   .action(async (version?: string) => {
     try {
       await whichBunVersion(version);
@@ -193,7 +227,7 @@ cli.command('which [version]', 'Display path to installed bun version')
     }
   });
 
-cli.command('deactivate', 'Undo effects of bvm on current shell')
+registerCommand('deactivate', 'Undo effects of bvm on current shell')
   .action(async () => {
     try {
       await deactivate();
@@ -203,7 +237,7 @@ cli.command('deactivate', 'Undo effects of bvm on current shell')
     }
   });
 
-cli.command('version <spec>', 'Resolve the given description to a single local version')
+registerCommand('version <spec>', 'Resolve the given description to a single local version')
   .action(async (spec: string) => {
     try {
       await displayVersion(spec);
@@ -213,7 +247,7 @@ cli.command('version <spec>', 'Resolve the given description to a single local v
     }
   });
 
-cli.command('cache <action>', 'Manage bvm cache')
+registerCommand('cache <action>', 'Manage bvm cache')
   .action(async (action: string) => {
     try {
       await cacheCommand(action);
@@ -222,8 +256,10 @@ cli.command('cache <action>', 'Manage bvm cache')
       process.exit(1);
     }
   });
+addHelpEntry('bvm cache dir', 'Display path to the cache directory for bvm');
+addHelpEntry('bvm cache clear', 'Empty cache directory for bvm');
 
-cli.command('setup', 'Configure shell environment automatically')
+registerCommand('setup', 'Configure shell environment automatically')
   .action(async () => {
     try {
       await configureShell();
@@ -233,8 +269,7 @@ cli.command('setup', 'Configure shell environment automatically')
     }
   });
 
-cli.command('upgrade', 'Upgrade bvm to the latest version')
-  .alias('self-update')
+registerCommand('upgrade', 'Upgrade bvm to the latest version', { aliases: ['self-update'] })
   .action(async () => {
     try {
       await upgradeBvm();
@@ -244,7 +279,7 @@ cli.command('upgrade', 'Upgrade bvm to the latest version')
     }
   });
 
-cli.command('doctor', 'Show diagnostics for Bun/BVM setup')
+registerCommand('doctor', 'Show diagnostics for Bun/BVM setup')
   .action(async () => {
     try {
       await doctor();
@@ -254,7 +289,7 @@ cli.command('doctor', 'Show diagnostics for Bun/BVM setup')
     }
   });
 
-cli.command('completion <shell>', 'Generate shell completion script (bash|zsh|fish)')
+registerCommand('completion <shell>', 'Generate shell completion script (bash|zsh|fish)')
   .action(async (shell: string) => {
     try {
       printCompletion(shell);
@@ -264,14 +299,14 @@ cli.command('completion <shell>', 'Generate shell completion script (bash|zsh|fi
     }
   });
 
-cli.command('help', 'Show help message')
+registerCommand('help', 'Show help message')
   .action(() => {
-    console.log(helpMessage);
+    console.log(buildHelpMessage());
   });
 
 // Add CAC's built-in help and version handling
-cli.version('1.0.0'); // Get this from package.json or a constant
-cli.help(); // Automatically display help on --help, -h, or unknown command
+cli.version(packageJson.version);
+cli.help(() => [{ body: buildHelpMessage() }]); // Provide custom help sections for --help/-h
 
 // Remove this manual check
 // if (process.argv.includes('--help') || process.argv.includes('-h')) {
@@ -281,25 +316,24 @@ cli.help(); // Automatically display help on --help, -h, or unknown command
 
 // Explicitly handle unknown commands before parsing or if no command is provided
 const args = process.argv.slice(2); // Get arguments after "bun run src/index.ts"
-const commandName = args[0]; // First argument is usually the command name
-
-// Get a list of all defined command names
-const definedCommands = cli.commands.map(cmd => cmd.rawName.split(' ')[0]).filter(Boolean); // Filter out empty strings for root command
+const commandName = args.find((arg) => arg !== '--'); // Skip the npm/bun "--" separator if present
 
 // Check if it's a global help/version flag
 const isGlobalFlag = args.includes('--help') || args.includes('-h') || args.includes('--version') || args.includes('-v');
 
 // If no command is provided, or an unrecognized command is provided
 // and it's not a global help/version flag, then display help.
+const helpText = buildHelpMessage();
+
 if (!commandName && !isGlobalFlag) {
   // No command provided, just print help
-  console.log(helpMessage);
+  console.log(helpText);
   process.exit(1);
-} else if (commandName && !definedCommands.includes(commandName) && !isGlobalFlag) {
-  // Unrecognized command
-  console.error(chalk.red(`\nError: Unknown command '${commandName}'`));
-  console.log(helpMessage);
-  process.exit(1);
+} else if (commandName && !registeredCommandNames.has(commandName) && !isGlobalFlag) {
+  // Unrecognized command: print friendly notice + help, but exit success to avoid extra noisy error
+  console.log(chalk.yellow(`\nUnknown command '${commandName}'`));
+  console.log(helpText);
+  process.exit(0);
 }
 
 // If it's a known command, or a global flag handled by cac, proceed with parsing.
@@ -308,7 +342,6 @@ try {
 } catch (error: any) {
   // This catch block might still be useful for other parsing errors (e.g., missing required args for a known command)
   console.error(chalk.red(`\nError: ${error.message}`));
-  console.log(helpMessage);
+  console.log(helpText);
   process.exit(1);
 }
-

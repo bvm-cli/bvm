@@ -2,7 +2,6 @@ import { USER_AGENT, getBunAssetName, REPO_FOR_BVM_CLI, ASSET_NAME_FOR_BVM, OS_P
 import { normalizeVersion } from './utils';
 import semver from 'semver';
 import chalk from 'chalk';
-import { spawn } from 'child_process';
 
 /**
  * Detects if the user is likely in China based on timezone.

@@ -1,8 +1,7 @@
 import chalk from 'chalk';
 import { join } from 'path';
 import { BVM_ALIAS_DIR, BVM_VERSIONS_DIR } from '../constants';
-import { ensureDir, pathExists, normalizeVersion } from '../utils';
-import { writeFile } from 'fs/promises';
+import { ensureDir, pathExists, normalizeVersion, writeTextFile } from '../utils';
 import { resolveLocalVersion } from './version';
 import { withSpinner } from '../command-runner';
 
@@ -36,7 +35,7 @@ export async function createAlias(aliasName: string, targetVersion: string): Pro
 
     // 3. Write the alias file
     const aliasFilePath = join(BVM_ALIAS_DIR, aliasName);
-    await writeFile(aliasFilePath, resolvedVersion, 'utf8');
+    await writeTextFile(aliasFilePath, `${resolvedVersion}\n`);
 
       spinner.succeed(chalk.green(`Alias '${aliasName}' created for Bun ${resolvedVersion}.`));
     },

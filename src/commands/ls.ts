@@ -1,7 +1,7 @@
 import chalk from 'chalk';
-import { getInstalledVersions, getSymlinkTarget, normalizeVersion, readDir, pathExists } from '../utils';
-import { BVM_CURRENT_BUN_PATH, BVM_ALIAS_DIR, BVM_VERSIONS_DIR } from '../constants';
-import { readlink, readFile } from 'fs/promises';
+import { getInstalledVersions, normalizeVersion, readDir, pathExists, readTextFile } from '../utils';
+import { BVM_CURRENT_BUN_PATH, BVM_ALIAS_DIR } from '../constants';
+import { readlink } from 'fs/promises';
 import { join } from 'path';
 import { withSpinner } from '../command-runner';
 
@@ -49,7 +49,7 @@ export async function listLocalVersions(): Promise<void> {
         if (aliasFiles.length > 0) {
             console.log(chalk.green('\nAliases:'));
             for (const aliasName of aliasFiles) {
-                const aliasTargetVersion = (await readFile(join(BVM_ALIAS_DIR, aliasName), 'utf8')).trim();
+                const aliasTargetVersion = (await readTextFile(join(BVM_ALIAS_DIR, aliasName))).trim();
                 const normalizedAliasTarget = normalizeVersion(aliasTargetVersion);
                 const isInstalled = installedVersions.includes(normalizedAliasTarget);
                 
