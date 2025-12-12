@@ -51,17 +51,27 @@ spinner() {
   printf "\b "
 }
 
-cat <<EOF
-\033[36m______________   _________   \
+print_logo() {
+  local version="$1"
+  local start_color=""
+  local reset_color=""
+  if [[ -t 1 ]]; then
+    start_color='\033[36m'
+    reset_color='\033[0m'
+  fi
+  printf "%b" "$start_color"
+  cat <<'EOF'
+______________   _________   \
 \______   \   \ /   /     \  
  |    |  _/\   Y   /  \ /  \ 
  |    |   \ \     /    Y    \
  |______  /  \___/\____|__  /
         \/                \/ 
-    Bun Version Manager · Built with Bun
-    Version: $LATEST_TAG
-\033[0m
 EOF
+  printf "%b" "$reset_color"
+  printf "    Bun Version Manager · Built with Bun\n"
+  printf "    Version: %s\n\n" "$version"
+}
 
 echo "$(_colorize "$Blue" "Installing bvm (Bun Version Manager)...")"
 
@@ -121,6 +131,8 @@ if [ -z "$LATEST_TAG" ]; then
 fi
 echo "Latest tag found: $(_colorize "$Green" "$LATEST_TAG")"
 
+print_logo "$LATEST_TAG"
+
 DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${LATEST_TAG}/${ASSET_NAME}"
 
 # Installation Directory
@@ -130,30 +142,35 @@ BIN_DIR="${BVM_DIR}/bin"
 # Ensure directories exist
 mkdir -p "$BIN_DIR"
 
-echo "Detecting platform: $(_colorize "$Green" "${PLATFORM} ${ARCH}")${Color_Off}"
-echo "Downloading bvm from: $(_colorize "$Yellow" "$DOWNLOAD_URL")"
+if [[ -n "$BVM_INSTALL_SOURCE" ]]; then
+  echo "Using local installer binary: $(_colorize "$Yellow" "$BVM_INSTALL_SOURCE")"
+  cp "$BVM_INSTALL_SOURCE" "${BIN_DIR}/bvm${EXTENSION}"
+else
+  echo "Detecting platform: $(_colorize "$Green" "${PLATFORM} ${ARCH}")${Color_Off}"
+  echo "Downloading bvm from: $(_colorize "$Yellow" "$DOWNLOAD_URL")"
 
-# --- Start download with Spinner ---
-if [[ -t 1 ]]; then # If running in a TTY, use spinner
-    (
-        if command -v curl >/dev/null 2>&1; then
-          curl -fsSL "$DOWNLOAD_URL" -o "${BIN_DIR}/bvm${EXTENSION}"
-        elif command -v wget >/dev/null 2>&1; then
-          wget -qO "${BIN_DIR}/bvm${EXTENSION}" "$DOWNLOAD_URL"
-        else
-          echo "$(_colorize "$Red" "Error: curl or wget is required to install bvm.")"
-          exit 1
-        fi
-    ) & spinner
-else # If not TTY, just show silent download
-    if command -v curl >/dev/null 2>&1; then
-      curl -fsSL "$DOWNLOAD_URL" -o "${BIN_DIR}/bvm${EXTENSION}"
-    elif command -v wget >/dev/null 2>&1; then
-      wget -qO "${BIN_DIR}/bvm${EXTENSION}" "$DOWNLOAD_URL"
-    else
-      echo "$(_colorize "$Red" "Error: curl or wget is required to install bvm.")"
-      exit 1
-    fi
+  # --- Start download with Spinner ---
+  if [[ -t 1 ]]; then # If running in a TTY, use spinner
+      (
+          if command -v curl >/dev/null 2>&1; then
+            curl -fsSL "$DOWNLOAD_URL" -o "${BIN_DIR}/bvm${EXTENSION}"
+          elif command -v wget >/dev/null 2>&1; then
+            wget -qO "${BIN_DIR}/bvm${EXTENSION}" "$DOWNLOAD_URL"
+          else
+            echo "$(_colorize "$Red" "Error: curl or wget is required to install bvm.")"
+            exit 1
+          fi
+      ) & spinner
+  else # If not TTY, just show silent download
+      if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$DOWNLOAD_URL" -o "${BIN_DIR}/bvm${EXTENSION}"
+      elif command -v wget >/dev/null 2>&1; then
+        wget -qO "${BIN_DIR}/bvm${EXTENSION}" "$DOWNLOAD_URL"
+      else
+        echo "$(_colorize "$Red" "Error: curl or wget is required to install bvm.")"
+        exit 1
+      fi
+  fi
 fi
 
 chmod +x "${BIN_DIR}/bvm${EXTENSION}"

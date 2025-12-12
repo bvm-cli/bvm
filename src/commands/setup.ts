@@ -5,8 +5,7 @@ import { BVM_BIN_DIR, BVM_DIR, EXECUTABLE_NAME } from '../constants';
 import chalk from 'chalk';
 import { readFile, appendFile, chmod, writeFile } from 'fs/promises';
 import inquirer from 'inquirer';
-const BVM_INIT_SH_URL = new URL('../bvm-init.sh', import.meta.url);
-const BVM_INIT_FISH_URL = new URL('../bvm-init.fish', import.meta.url);
+import { BVM_INIT_SH_TEMPLATE, BVM_INIT_FISH_TEMPLATE } from '../templates/init-scripts';
 
 /**
  * Detects the user's shell and configures the PATH.
@@ -53,12 +52,12 @@ export async function configureShell(): Promise<void> {
 
   // Copy bvm-init.sh
   const bvmInitShPath = join(BVM_BIN_DIR, 'bvm-init.sh');
-  await Bun.write(bvmInitShPath, await Bun.file(BVM_INIT_SH_URL).text());
+  await Bun.write(bvmInitShPath, BVM_INIT_SH_TEMPLATE);
   await chmod(bvmInitShPath, 0o755); // Make it executable
 
   // Copy bvm-init.fish
   const bvmInitFishPath = join(BVM_BIN_DIR, 'bvm-init.fish');
-  await Bun.write(bvmInitFishPath, await Bun.file(BVM_INIT_FISH_URL).text());
+  await Bun.write(bvmInitFishPath, BVM_INIT_FISH_TEMPLATE);
   await chmod(bvmInitFishPath, 0o755); // Make it executable
 
   let content = '';
